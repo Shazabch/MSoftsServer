@@ -11,7 +11,7 @@ const MongoStore = require('connect-mongo');
 const authRoutes = require('./Routers/Auth');
 const subAdminRoutes = require('./Routers/SubAdmin');
 const RolesRoutes = require('./Routers/Roles');
-// const testimonialRoutes = require('./Routers/Feedback');
+const testimonialRoutes = require('./Routers/Feedback');
 const contactRouter = require('./Routers/ContactController');
 const InquiryRouter = require('./Routers/CostInquiry');
 const TeamMemberRouter = require('./Routers/TeamMember');
@@ -54,7 +54,7 @@ mongoose
 app.use('/api/auth', authRoutes);
 app.use('/api/subadmins', subAdminRoutes);
 app.use('/api/roles', RolesRoutes);
-// app.use('/api/testimonials', testimonialRoutes);
+app.use('/api/testimonials', testimonialRoutes);
 app.use('/contact', contactRouter);
 app.use('/api/inquiry', InquiryRouter);
 app.use('/api/team', TeamMemberRouter);
