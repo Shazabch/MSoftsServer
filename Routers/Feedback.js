@@ -1,7 +1,7 @@
 // routes/testimonialRoutes.js
 const express = require('express');
 const router = express.Router();
-const Testimonial = require('../Models/FeedbackModel'); // Adjust the path as needed
+const Testimonial = require('../Models/TestimonialModel'); // Adjust the path as needed
 // POST: Add a new testimonial
 router.post('/submit', async (req, res) => {
   try {
