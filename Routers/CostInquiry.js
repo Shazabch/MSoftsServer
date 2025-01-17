@@ -2,7 +2,7 @@ const express = require("express");
 const router = express.Router();
 const Inquiry = require("../Models/CostInquiryModel"); // Use the correct model name
 const nodemailer = require("nodemailer");
-const Feature = require("../Models/InquiryFEatures"); // Import the Features model
+const Feature = require("../Models/InquiryFeatures"); // Import the Features model
 // Route to get the count of cost inquiries
 router.get("/cost-inquiries/count", async (req, res) => {
   try {
