@@ -50,8 +50,6 @@ app.use(
 // Connect to MongoDB
 mongoose
   .connect("mongodb+srv://majesticsofts:GbyEH9AXMi8QT4oI@majesticsofts.l5j37.mongodb.net/MajesticSofts?retryWrites=true&w=majority", {
-    useNewUrlParser: true,
-    useUnifiedTopology: true,
     serverSelectionTimeoutMS: 50000 // Increase timeout to 50 seconds
 
   })
