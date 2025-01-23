@@ -26,7 +26,7 @@ router.post("/", async (req, res) => {
   // Mail options - Sending email to the company
   const mailOptionsToCompany = {
     from: `"${name}" <${email}>`,
-    to: process.env.RECIPIENT_EMAIL, // Company's recipient email
+    to: "info@majesticsofts.com", // Company's recipient email
     subject: `📬 New ${inquiryType} Inquiry from ${name}`,
     text: `
       Hi there,

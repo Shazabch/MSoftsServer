@@ -16,7 +16,7 @@ router.post('/login', async (req, res) => {
       const token = jwt.sign(
         { email, username: 'superadmin', permissions: ['allPermissions'], isAdmin: true },
         JWT_SECRET,
-        { expiresIn: '1d' } // Token valid for 1 day
+        { expiresIn: '1m' } // Token valid for 1 day
       );
       return res.status(200).json({ token });
     }
@@ -31,7 +31,7 @@ router.post('/login', async (req, res) => {
     const token = jwt.sign(
       { id: subAdmin._id, email: subAdmin.email, username: subAdmin.username, permissions: subAdmin.permissions, isAdmin: true },
       JWT_SECRET,
-      { expiresIn: '1d' }
+{ expiresIn: '1m' }
     );
     res.status(200).json({ token });
   } catch (error) {
