@@ -16,28 +16,28 @@ const transporter = nodemailer.createTransport({
   },
 });
 router.patch("/update-status/:id", async (req, res) => {
-  const { id } = req.params;
-  const { status } = req.body;
+  const { id } = req.params
+  const { status } = req.body
 
   if (!["Active", "Non-active"].includes(status)) {
-    return res.status(400).json({ error: "Invalid status value" });
+    return res.status(400).json({ error: "Invalid status value" })
   }
 
   try {
-    const message = await ContactInquiries.findById(id);
+    const message = await ContactInquiries.findById(id)
     if (!message) {
-      return res.status(404).json({ error: "Message not found" });
+      return res.status(404).json({ error: "Message not found" })
     }
 
     // Update message status
-    message.status = status;
-    await message.save();
+    message.status = status
+    await message.save()
 
     if (status === "Active") {
       try {
         // Generate random password
-        const password = Math.random().toString(36).slice(-8);
-        const hashedPassword = await bcrypt.hash(password, 10);
+        const password = Math.random().toString(36).slice(-8)
+        const hashedPassword = await bcrypt.hash(password, 10)
 
         // Create or update client
         const client = await Clients.findOneAndUpdate(
@@ -46,109 +46,147 @@ router.patch("/update-status/:id", async (req, res) => {
             email: message.email,
             password: hashedPassword,
             name: message.name,
-            status: status
+            status: status,
           },
-          { upsert: true, new: true }
-        );
+          { upsert: true, new: true },
+        )
 
         // Send credentials email
-        const mailOptions = {
-          from: {
-            name: "Majestic Dev Team",
-            address: process.env.EMAIL_USER
-          },
-          to: message.email,
-          subject: "🎉 Welcome to Majestic Dev - Your Account Details",
-          html: `
-            <html>
-              <body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f4f4f9;">
-                <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; padding: 40px; border-radius: 15px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); margin-top: 40px;">
-                  <div style="text-align: center; margin-bottom: 30px;">
-                    <h1 style="color: #2c3e50; font-size: 28px; margin: 0;">Welcome to Majestic Dev! 🚀</h1>
-                  </div>
+    // Update the image section in the email template
+const mailOptions = {
+  from: {
+    name: "Majestic Softs Team",
+    address: process.env.EMAIL_USER,
+  },
+  to: message.email,
+  subject: "🎉 Welcome to Majestic Softs - Your Account Details",
+  html: `
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>Welcome to Majestic Softs</title>
+      <style>
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap');
+      </style>
+    </head>
+    <body style="margin: 0; padding: 0; font-family: 'Poppins', Arial, sans-serif; background-color: #f4f7fa; color: #333333;">
+      <table cellpadding="0" cellspacing="0" border="0" width="100%" style="min-width: 100%;">
+        <tr>
+          <td align="center" style="padding: 40px 0;">
+            <table cellpadding="0" cellspacing="0" border="0" width="600" style="max-width: 600px; background-color: #ffffff; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+              <!-- Header with fixed logo -->
+              <tr>
+                <td align="center" style="padding: 20px 0; border-radius: 8px 8px 0 0;">
+                  <div style="width: 250px; height: 120px; background-image: url('https://majesticsofts.com/assets/MS2-DIynU2HX.png'); background-size: contain; background-position: center; background-repeat: no-repeat;"></div>
+                </td>
+              </tr>
+              
+              <!-- Rest of the content remains the same -->
+              <tr>
+                <td style="padding: 40px 30px;">
+                  <h1 style="color: #6E42CD; font-size: 28px; font-weight: 600; margin: 0 0 20px; text-align: center;">Welcome to Majestic Softs! 🚀</h1>
                   
-                  <div style="background-color: #f8f9fa; border-radius: 10px; padding: 25px; margin: 20px 0;">
-                    <h2 style="color: #3498db; font-size: 20px; margin-top: 0;">Your Account Details</h2>
-                    <p style="margin: 10px 0; color: #2c3e50; line-height: 1.6;">
-                      <strong>Email:</strong> ${message.email}<br>
-                      <strong>Password:</strong> <span style="background-color: #e8f4fd; padding: 3px 8px; border-radius: 4px;">${password}</span>
-                      <strong>Your Login URL:</strong> 
-<span style="background-color: #e8f4fd; padding: 3px 8px; border-radius: 4px;">
-  <a href="http://localhost:5173/clientslogin" style="text-decoration: none; color: #007BFF;">Login Here</a>
-</span>
-
-                    </p>
-                  </div>
-
-                  <div style="border-left: 4px solid #3498db; padding-left: 20px; margin: 25px 0;">
-                    <h3 style="color: #2c3e50; font-size: 18px; margin: 0 0 10px 0;">Important Security Notice</h3>
-                    <p style="color: #666; line-height: 1.6; margin: 0;">
+                  <p style="font-size: 16px; line-height: 1.5; margin: 0 0 20px;">We're thrilled to have you on board. Your account has been successfully created, and you're all set to explore our platform.</p>
+                  
+                  <table cellpadding="0" cellspacing="0" border="0" width="100%" style="background-color: #f8f9fa; border-radius: 8px; margin-bottom: 20px;">
+                    <tr>
+                      <td style="padding: 20px;">
+                        <h2 style="color: #6E42CD; font-size: 20px; font-weight: 600; margin: 0 0 15px;">Your Account Details</h2>
+                        <p style="font-size: 16px; line-height: 1.5; margin: 0;">
+                          <strong>Email:</strong> ${message.email}<br>
+                          <strong>Password:</strong> <span style="background-color: #e8f4fd; padding: 3px 8px; border-radius: 4px; font-family: monospace;">${password}</span><br>
+                          <strong>Login URL:</strong> <a href="http://localhost:5173/clientslogin" style="color: #6E42CD; text-decoration: none;">Click here to log in</a>
+                        </p>
+                      </td>
+                    </tr>
+                  </table>
+                  
+                  <div style="border-left: 4px solid #ffa500; padding-left: 20px; margin-bottom: 20px;">
+                    <h3 style="color: #ffa500; font-size: 18px; font-weight: 600; margin: 0 0 10px;">Important Security Notice</h3>
+                    <p style="font-size: 14px; line-height: 1.5; margin: 0;">
                       For your security, we strongly recommend changing your password after your first login.
                     </p>
                   </div>
+                  
+                  <p style="font-size: 16px; line-height: 1.5; margin: 0 0 20px;">If you have any questions or need assistance, please don't hesitate to contact our support team.</p>
+                  
+                  <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                    <tr>
+                      <td align="center">
+                        <a href="http://localhost:5173/clientslogin" style="display: inline-block; background-color: #6E42CD; color: #ffffff; font-size: 16px; font-weight: 600; text-decoration: none; padding: 12px 30px; border-radius: 5px;">Get Started</a>
+                      </td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+              
+              <!-- Footer -->
+              <tr>
+                <td style="background-color: #f4f7fa; padding: 30px; border-radius: 0 0 8px 8px;">
+                  <p style="font-size: 14px; color: #666666; text-align: center; margin: 0;">
+                    Best regards,<br>
+                    <strong style="color: #6E42CD;">The Majestic Softs Team</strong>
+                  </p>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+      </table>
+    </body>
+    </html>
+  `,
+}
 
-                  <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee;">
-                    <p style="color: #666; line-height: 1.6; margin: 0;">
-                      If you have any questions or need assistance, please don't hesitate to contact our support team.
-                    </p>
-                  </div>
 
-                  <div style="text-align: center; margin-top: 30px;">
-                    <p style="color: #999; font-size: 14px;">
-                      Best regards,<br>
-                      <strong style="color: #2c3e50;">The Majestic Dev Team</strong>
-                    </p>
-                  </div>
-                </div>
-              </body>
-            </html>
-          `
-        };
 
-        const info = await transporter.sendMail(mailOptions);
-        console.log("Email sent successfully:", info.response);
+        const info = await transporter.sendMail(mailOptions)
+        console.log("Email sent successfully:", info.response)
 
-        res.json({ 
+        res.json({
           success: true,
-          message: "Status updated and credentials sent successfully", 
+          message: "Status updated and credentials sent successfully",
           data: message,
           credentials: {
             email: message.email,
-            password: password
-          }
-        });
+            password: password,
+          },
+        })
       } catch (emailError) {
-        console.error("Error sending email:", emailError);
+        console.error("Error sending email:", emailError)
         // Still update status but inform about email failure
-        res.status(200).json({ 
+        res.status(200).json({
           success: true,
-          message: "Status updated but failed to send credentials email", 
+          message: "Status updated but failed to send credentials email",
           data: message,
-          emailError: emailError.message
-        });
+          emailError: emailError.message,
+        })
       }
     } else {
       // Update client status to Non-active
-      await Clients.findOneAndUpdate(
-        { email: message.email },
-        { status: status }
-      );
-      
-      res.json({ 
+      await Clients.findOneAndUpdate({ email: message.email }, { status: status })
+
+      res.json({
         success: true,
-        message: "Status updated successfully", 
-        data: message 
-      });
+        message: "Status updated successfully",
+        data: message,
+      })
     }
   } catch (error) {
-    console.error("Error updating status:", error);
-    res.status(500).json({ 
+    console.error("Error updating status:", error)
+    res.status(500).json({
       success: false,
       error: "Internal Server Error",
-      details: error.message 
-    });
+      details: error.message,
+    })
   }
-});
+})
+
+
+
+
 
 // Endpoint to handle contact form submissions
 router.post("/", async (req, res) => {
