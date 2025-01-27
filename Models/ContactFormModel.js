@@ -21,6 +21,8 @@ const ContactFormSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
+    status: { type: String, enum: ["Active", "Non-active"], default: "Non-active" },
+
     message: {
       type: String,
       required: true,
