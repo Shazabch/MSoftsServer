@@ -4,6 +4,8 @@ const router = express.Router();
 const ContactInquiries = require("../Models/ContactFormModel"); // Updated model name
 const Clients = require("../Models/Clients"); // Updated model name
 const bcrypt = require("bcryptjs");
+const crypto = require('crypto');
+
 const dotenv = require("dotenv");
 dotenv.config();
 
@@ -16,43 +18,46 @@ const transporter = nodemailer.createTransport({
   },
 });
 router.patch("/update-status/:id", async (req, res) => {
-  const { id } = req.params;
-  const { status } = req.body;
+  const { id } = req.params
+  const { status } = req.body
 
   if (!["Active", "Non-active"].includes(status)) {
-    return res.status(400).json({ error: "Invalid status value" });
+    return res.status(400).json({ error: "Invalid status value" })
   }
 
   try {
-    const message = await ContactInquiries.findById(id);
+    const message = await ContactInquiries.findById(id)
     if (!message) {
-      return res.status(404).json({ error: "Message not found" });
+      return res.status(404).json({ error: "Message not found" })
     }
 
     // Update message status
-    message.status = status;
-    await message.save();
+    message.status = status
+    await message.save()
 
     if (status === "Active") {
       try {
         // Generate random password
-        const password = Math.random().toString(36).slice(-8);
-        const hashedPassword = await bcrypt.hash(password, 10);
+        const password = Math.random().toString(36).slice(-8)
+        const hashedPassword = await bcrypt.hash(password, 10)
+
+        // Generate a unique client ID
+        const clientId = crypto.randomBytes(8).toString("hex")
 
         // Create or update client
         const client = await Clients.findOneAndUpdate(
           { email: message.email },
           {
+            clientId: clientId,
             email: message.email,
             password: hashedPassword,
             name: message.name,
             status: status,
           },
-          { upsert: true, new: true }
-        );
+          { upsert: true, new: true },
+        )
 
         // Send credentials email
-        // Update the image section in the email template
         const mailOptions = {
           from: {
             name: "Majestic Softs Team",
@@ -61,7 +66,7 @@ router.patch("/update-status/:id", async (req, res) => {
           to: message.email,
           subject: "🎉 Welcome to Majestic Softs - Your Account Details",
           html: `
-  <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -137,53 +142,49 @@ router.patch("/update-status/:id", async (req, res) => {
   </table>
 </body>
 </html>
-
-
-  `,
-        };
-        const info = await transporter.sendMail(mailOptions);
+          `,
+        }
+        const info = await transporter.sendMail(mailOptions)
 
         res.json({
           success: true,
           message: "Status updated and credentials sent successfully",
           data: message,
           credentials: {
+            clientId: clientId,
             email: message.email,
             password: password,
           },
-        });
+        })
       } catch (emailError) {
-        console.error("Error sending email:", emailError);
+        console.error("Error sending email:", emailError)
         // Still update status but inform about email failure
         res.status(200).json({
           success: true,
           message: "Status updated but failed to send credentials email",
           data: message,
           emailError: emailError.message,
-        });
+        })
       }
     } else {
       // Update client status to Non-active
-      await Clients.findOneAndUpdate(
-        { email: message.email },
-        { status: status }
-      );
+      await Clients.findOneAndUpdate({ email: message.email }, { status: status })
 
       res.json({
         success: true,
         message: "Status updated successfully",
         data: message,
-      });
+      })
     }
   } catch (error) {
-    console.error("Error updating status:", error);
+    console.error("Error updating status:", error)
     res.status(500).json({
       success: false,
       error: "Internal Server Error",
       details: error.message,
-    });
+    })
   }
-});
+})
 // Endpoint to handle contact form submissions
 router.post("/", async (req, res) => {
   const { name, email, phone, message, inquiryType } = req.body;
@@ -323,18 +324,12 @@ router.get("/show", async (req, res) => {
       activeMessages,
       archivedMessages,
     }
-
-    console.log("Query:", JSON.stringify(query, null, 2))
-    console.log("Response:", JSON.stringify(response, null, 2))
-
     res.json(response)
   } catch (error) {
     console.error("Error fetching messages:", error)
     res.status(500).json({ error: "Internal Server Error", details: error.message })
   }
 })
-
-
 
 // New route for archiving a message
 router.patch("/archive/:id", async (req, res) => {

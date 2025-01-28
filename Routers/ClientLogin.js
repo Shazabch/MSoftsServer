@@ -11,7 +11,6 @@ const JWT_SECRET = process.env.JWT_SECRET || 'msofts';
 router.post('/login', async (req, res) => {
   const { email, password } = req.body;
 
-  // Check if email and password are provided
   if (!email || !password) {
     return res.status(400).json({ error: 'Email and password are required' });
   }
@@ -35,25 +34,24 @@ router.post('/login', async (req, res) => {
       return res.status(401).json({ error: 'Invalid email or password' });
     }
 
-    // Generate a JWT token
+    // Generate a JWT token for the client
     const token = jwt.sign(
-      { id: client._id, email: client.email, role: 'client' }, // Add any payload data you need
+      { id: client._id, email: client.email, role: 'client', name: client.name },
       JWT_SECRET,
-      { expiresIn: '3d' } // Token expiration time
+      { expiresIn: '3d' }
     );
 
-    // Send success response with the token
     res.json({
-      message: 'Login successful',
+      message: 'Client login successful',
       token,
       client: {
         id: client._id,
         email: client.email,
-        name: client.name, 
+        name: client.name,
       },
     });
   } catch (error) {
-    console.error('Login error:', error);
+    console.error('Client login error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

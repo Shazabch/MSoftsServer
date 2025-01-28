@@ -12,13 +12,19 @@ router.post('/login', async (req, res) => {
 
   try {
     // SuperAdmin login
-    if (email === 'superadmin@gmail.com' && password === 'superadmin') {
+    if (email === 'superadmin@gmail.com' && password === 'supeeradmin') {
       const token = jwt.sign(
-        { email, username: 'superadmin', permissions: ['allPermissions'], isAdmin: true },
+        {
+          email,
+          username: 'superadmin',
+          permissions: ['allPermissions'],
+          isAdmin: true,
+          role: 'superadmin',
+        },
         JWT_SECRET,
         { expiresIn: '1d' } // Token valid for 1 day
       );
-      return res.status(200).json({ token });
+      return res.status(200).json({ message: 'SuperAdmin login successful', token });
     }
 
     // SubAdmin login
@@ -29,15 +35,24 @@ router.post('/login', async (req, res) => {
     if (!isMatch) return res.status(400).json({ error: 'Invalid credentials' });
 
     const token = jwt.sign(
-      { id: subAdmin._id, email: subAdmin.email, username: subAdmin.username, permissions: subAdmin.permissions, isAdmin: true },
+      {
+        id: subAdmin._id,
+        email: subAdmin.email,
+        username: subAdmin.username,
+        permissions: subAdmin.permissions,
+        isAdmin: true,
+        role: 'subadmin',
+      },
       JWT_SECRET,
-{ expiresIn: '1d' }
+      { expiresIn: '1d' }
     );
-    res.status(200).json({ token });
+    res.status(200).json({ message: 'SubAdmin login successful', token });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error('Admin login error:', error);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
+
 
 // Middleware to verify JWT
 const verifyToken = (req, res, next) => {
