@@ -55,5 +55,27 @@ router.post('/login', async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+// Fetch all client emails
+router.get('/show', async (req, res) => {
+  try {
+    // Fetch clients with only required fields (email and id)
+    const clients = await Clients.find({}, 'email _id name status');
 
+    // Filter only active clients (optional, depending on your requirements)
+    const activeClients = clients.filter(client => client.status === 'Active');
+
+    res.status(200).json({
+      message: 'Clients fetched successfully',
+      clients: activeClients.map(client => ({
+        id: client._id,
+        email: client.email,
+        name: client.name,
+        status: client.status,
+      })),
+    });
+  } catch (error) {
+    console.error('Error fetching clients:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
 module.exports = router;

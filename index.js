@@ -20,6 +20,7 @@ const projectRoutes = require('./Routers/Projects');
 const NewsletterRouter = require('./Routers/Newsletter');
 const ClientsRouter = require('./Routers/ClientsAdmin');
 const ClientsLoginRouter = require('./Routers/ClientLogin');
+const ClientsProjectsRouter = require('./Routers/ClientProjects');
 
 // Initialize Express app
 const app = express();
@@ -64,6 +65,7 @@ app.use('/api/blog', BlogPostsRouter);
 app.use('/api/newsletter', NewsletterRouter);
 app.use('/api/clients', ClientsRouter);
 app.use('/api/user', ClientsLoginRouter);
+app.use('/api/client/projects', ClientsProjectsRouter);
 
 // Set the PORT
 const PORT = process.env.PORT || 5000;
