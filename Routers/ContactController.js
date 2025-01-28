@@ -3,8 +3,8 @@ const nodemailer = require("nodemailer");
 const router = express.Router();
 const ContactInquiries = require("../Models/ContactFormModel"); // Updated model name
 const Clients = require("../Models/Clients"); // Updated model name
-const bcrypt = require('bcryptjs');
-const dotenv = require('dotenv');
+const bcrypt = require("bcryptjs");
+const dotenv = require("dotenv");
 dotenv.config();
 
 // Create the transporter using Gmail
@@ -16,28 +16,28 @@ const transporter = nodemailer.createTransport({
   },
 });
 router.patch("/update-status/:id", async (req, res) => {
-  const { id } = req.params
-  const { status } = req.body
+  const { id } = req.params;
+  const { status } = req.body;
 
   if (!["Active", "Non-active"].includes(status)) {
-    return res.status(400).json({ error: "Invalid status value" })
+    return res.status(400).json({ error: "Invalid status value" });
   }
 
   try {
-    const message = await ContactInquiries.findById(id)
+    const message = await ContactInquiries.findById(id);
     if (!message) {
-      return res.status(404).json({ error: "Message not found" })
+      return res.status(404).json({ error: "Message not found" });
     }
 
     // Update message status
-    message.status = status
-    await message.save()
+    message.status = status;
+    await message.save();
 
     if (status === "Active") {
       try {
         // Generate random password
-        const password = Math.random().toString(36).slice(-8)
-        const hashedPassword = await bcrypt.hash(password, 10)
+        const password = Math.random().toString(36).slice(-8);
+        const hashedPassword = await bcrypt.hash(password, 10);
 
         // Create or update client
         const client = await Clients.findOneAndUpdate(
@@ -48,19 +48,19 @@ router.patch("/update-status/:id", async (req, res) => {
             name: message.name,
             status: status,
           },
-          { upsert: true, new: true },
-        )
+          { upsert: true, new: true }
+        );
 
         // Send credentials email
-    // Update the image section in the email template
-const mailOptions = {
-  from: {
-    name: "Majestic Softs Team",
-    address: process.env.EMAIL_USER,
-  },
-  to: message.email,
-  subject: "🎉 Welcome to Majestic Softs - Your Account Details",
-  html: `
+        // Update the image section in the email template
+        const mailOptions = {
+          from: {
+            name: "Majestic Softs Team",
+            address: process.env.EMAIL_USER,
+          },
+          to: message.email,
+          subject: "🎉 Welcome to Majestic Softs - Your Account Details",
+          html: `
   <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -140,8 +140,8 @@ const mailOptions = {
 
 
   `,
-}
-        const info = await transporter.sendMail(mailOptions)
+        };
+        const info = await transporter.sendMail(mailOptions);
 
         res.json({
           success: true,
@@ -151,36 +151,39 @@ const mailOptions = {
             email: message.email,
             password: password,
           },
-        })
+        });
       } catch (emailError) {
-        console.error("Error sending email:", emailError)
+        console.error("Error sending email:", emailError);
         // Still update status but inform about email failure
         res.status(200).json({
           success: true,
           message: "Status updated but failed to send credentials email",
           data: message,
           emailError: emailError.message,
-        })
+        });
       }
     } else {
       // Update client status to Non-active
-      await Clients.findOneAndUpdate({ email: message.email }, { status: status })
+      await Clients.findOneAndUpdate(
+        { email: message.email },
+        { status: status }
+      );
 
       res.json({
         success: true,
         message: "Status updated successfully",
         data: message,
-      })
+      });
     }
   } catch (error) {
-    console.error("Error updating status:", error)
+    console.error("Error updating status:", error);
     res.status(500).json({
       success: false,
       error: "Internal Server Error",
       details: error.message,
-    })
+    });
   }
-})
+});
 // Endpoint to handle contact form submissions
 router.post("/", async (req, res) => {
   const { name, email, phone, message, inquiryType } = req.body;
@@ -265,13 +268,23 @@ router.post("/", async (req, res) => {
     await transporter.sendMail(mailOptionsToUser);
 
     // Save the data to the database
-    const newInquiry = new ContactInquiries({ name, email, phone, message, inquiryType });
+    const newInquiry = new ContactInquiries({
+      name,
+      email,
+      phone,
+      message,
+      inquiryType,
+    });
     await newInquiry.save();
 
-    res.status(200).json({ message: "Your message has been sent and saved successfully!" });
+    res
+      .status(200)
+      .json({ message: "Your message has been sent and saved successfully!" });
   } catch (error) {
     console.error("Error:", error.message);
-    res.status(500).json({ error: "Failed to send message. Please try again later." });
+    res
+      .status(500)
+      .json({ error: "Failed to send message. Please try again later." });
   }
 });
 // Get all messages with pagination
@@ -279,27 +292,26 @@ router.get("/show", async (req, res) => {
   const { page = 1, limit = 15, showArchived = "false", showOnlyActive = "false" } = req.query
   const skip = (page - 1) * limit
 
-
   try {
     const query = {}
     if (showArchived === "true") {
       query.archived = true
     } else if (showOnlyActive === "true") {
-      query.status = "Active"
+      query.$or = [
+        { status: "Active", archived: false },
+        { status: "Active", archived: true },
+      ]
     } else {
       query.archived = { $ne: true }
     }
 
-
     const [totalMessages, activeMessages, archivedMessages, messages, totalFilteredMessages] = await Promise.all([
       ContactInquiries.countDocuments(),
-      ContactInquiries.countDocuments({ status: "Active", archived: { $ne: true } }),
+      ContactInquiries.countDocuments({ status: "Active" }),
       ContactInquiries.countDocuments({ archived: true }),
       ContactInquiries.find(query).sort({ createdAt: -1 }).skip(skip).limit(Number(limit)),
       ContactInquiries.countDocuments(query),
     ])
-
-   
 
     const totalPages = Math.ceil(totalFilteredMessages / limit)
 
@@ -312,6 +324,7 @@ router.get("/show", async (req, res) => {
       archivedMessages,
     }
 
+    console.log("Query:", JSON.stringify(query, null, 2))
     console.log("Response:", JSON.stringify(response, null, 2))
 
     res.json(response)
@@ -322,75 +335,74 @@ router.get("/show", async (req, res) => {
 })
 
 
+
 // New route for archiving a message
 router.patch("/archive/:id", async (req, res) => {
-  const { id } = req.params
+  const { id } = req.params;
 
   try {
-    const message = await ContactInquiries.findById(id)
+    const message = await ContactInquiries.findById(id);
     if (!message) {
-      return res.status(404).json({ error: "Message not found" })
+      return res.status(404).json({ error: "Message not found" });
     }
 
-    message.archived = true
-    await message.save()
+    message.archived = true;
+    await message.save();
 
-    res.json({ success: true, message: "Message archived successfully" })
+    res.json({ success: true, message: "Message archived successfully" });
   } catch (err) {
-    console.error("Error archiving message:", err)
-    res.status(500).json({ error: "Failed to archive message" })
+    console.error("Error archiving message:", err);
+    res.status(500).json({ error: "Failed to archive message" });
   }
-})
+});
 
 // New route for unarchiving a message
 router.patch("/unarchive/:id", async (req, res) => {
-  const { id } = req.params
+  const { id } = req.params;
 
   try {
-    const message = await ContactInquiries.findById(id)
+    const message = await ContactInquiries.findById(id);
     if (!message) {
-      return res.status(404).json({ error: "Message not found" })
+      return res.status(404).json({ error: "Message not found" });
     }
 
-    message.archived = false
-    await message.save()
+    message.archived = false;
+    await message.save();
 
-    res.json({ success: true, message: "Message unarchived successfully" })
+    res.json({ success: true, message: "Message unarchived successfully" });
   } catch (err) {
-    console.error("Error unarchiving message:", err)
-    res.status(500).json({ error: "Failed to unarchive message" })
+    console.error("Error unarchiving message:", err);
+    res.status(500).json({ error: "Failed to unarchive message" });
   }
-})
+});
 
 // Endpoint to get the total number of contact mails
-router.get('/contact-mails/count', async (req, res) => {
+router.get("/contact-mails/count", async (req, res) => {
   try {
     const totalMessages = await ContactInquiries.countDocuments(); // Count all messages
     res.status(200).json({ count: totalMessages });
   } catch (err) {
     console.error("Error counting contact mails:", err);
-    res.status(500).json({ error: 'Failed to count contact mails' });
+    res.status(500).json({ error: "Failed to count contact mails" });
   }
 });
 
-
 // Add new message
-router.post('/new', async (req, res) => {
+router.post("/new", async (req, res) => {
   const { name, email, message } = req.body;
-  
+
   if (!name || !email || !message) {
-    return res.status(400).json({ error: 'All fields are required' });
+    return res.status(400).json({ error: "All fields are required" });
   }
 
   try {
     const newMessage = new Message({ name, email, message });
     await newMessage.save();
-    res.status(201).json({ message: 'Message sent successfully!' });
+    res.status(201).json({ message: "Message sent successfully!" });
   } catch (err) {
-    res.status(500).json({ error: 'Failed to send message' });
+    res.status(500).json({ error: "Failed to send message" });
   }
 });
-
 
 router.patch("/update-status/:id", async (req, res) => {
   const { id } = req.params;
@@ -421,7 +433,7 @@ router.patch("/update-status/:id", async (req, res) => {
           email: message.email,
           password: hashedPassword,
           name: message.name,
-          status: status
+          status: status,
         },
         { upsert: true, new: true }
       );
@@ -469,13 +481,13 @@ router.patch("/update-status/:id", async (req, res) => {
               </div>
             </body>
           </html>
-        `
+        `,
       };
 
       await transporter.sendMail(mailOptions);
-      res.json({ 
-        message: "Status updated and credentials sent successfully", 
-        data: message 
+      res.json({
+        message: "Status updated and credentials sent successfully",
+        data: message,
       });
     } else {
       // Update client status to Non-active
@@ -483,10 +495,10 @@ router.patch("/update-status/:id", async (req, res) => {
         { email: message.email },
         { status: status }
       );
-      
-      res.json({ 
-        message: "Status updated successfully", 
-        data: message 
+
+      res.json({
+        message: "Status updated successfully",
+        data: message,
       });
     }
   } catch (error) {
