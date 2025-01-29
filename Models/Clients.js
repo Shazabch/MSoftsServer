@@ -17,6 +17,8 @@ const clientsSchema = new mongoose.Schema({
   },
   name: String,
   phone: String,
+  company: String,
+  address: String,
   status: {
     type: String,
     enum: ["Active", "Non-active"],
@@ -29,4 +31,3 @@ const clientsSchema = new mongoose.Schema({
 })
 
 module.exports = mongoose.model("Clients", clientsSchema)
-

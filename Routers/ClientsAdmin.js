@@ -1,5 +1,5 @@
 const express = require("express");
-const Client = require("../Models/ClientsModel");
+const Client = require("../Models/Clients");
 const router = express.Router();
 
 // Get all clients
@@ -19,12 +19,7 @@ router.post("/create", async (req, res) => {
     email,
     phone,
     company,
-    projectName,
-    projectDescription,
-    projectType,
-    features, // this will be an array now
-    budget,
-    deadline,
+   address,
   } = req.body;
 
   const newClient = new Client({
@@ -32,12 +27,7 @@ router.post("/create", async (req, res) => {
     email,
     phone,
     company,
-    projectName,
-    projectDescription,
-    projectType,
-    features, // passing the array of features
-    budget,
-    deadline,
+   address,
   });
 
   try {
