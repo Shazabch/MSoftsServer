@@ -11,7 +11,7 @@ const projectSchema = new mongoose.Schema({
       "In Progress",
       "Review",
       "Completed",
-      "On Hold",            // New status
+      "On Hold",            
       "Cancelled",          // New status
       "Under Analysis"      // New status
     ],
