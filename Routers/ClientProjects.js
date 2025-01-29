@@ -2,11 +2,11 @@ const express = require("express");
 const router = express.Router();
 const Project = require("../Models/ClientProjects");
 const User = require("../Models/Clients");
+const auth = require("../Middlewere/ClientAuth");
 
 // Get all projects
 router.get("/show", async (req, res) => {
-  const { status } = req.query;  // If you want to filter projects by status
-
+  const { status } = req.query;
   try {
     let query = {};
     if (status) {
@@ -19,15 +19,16 @@ router.get("/show", async (req, res) => {
   }
 });
 
-
 // Add a new project
 router.post("/add", async (req, res) => {
-  const { name, clientEmail, status, description } = req.body;
+  console.log("Received data:", req.body);
 
-  if (!name || !clientEmail || !description) {
+  const { name, clientEmail, status, description, features, budget, deadline } = req.body;
+
+  if (!name || !clientEmail || !description || !features || !budget || !deadline) {
     return res
       .status(400)
-      .json({ error: "Name, clientEmail, and description are required" });
+      .json({ error: "Name, clientEmail, description, features, budget, and deadline are required" });
   }
 
   try {
@@ -38,7 +39,13 @@ router.post("/add", async (req, res) => {
     }
 
     // Assign clientId from the client model
-    const clientId = client._id.toString();  // Ensure you're getting the clientId correctly
+    const clientId = client._id.toString();
+
+    // Calculate days remaining
+    const deadlineDate = new Date(deadline);
+    const currentDate = new Date();
+    const timeDiff = deadlineDate.getTime() - currentDate.getTime();
+    const daysRemaining = Math.ceil(timeDiff / (1000 * 60 * 60 * 24));
 
     // Determine the progress based on status
     let progress = 0;
@@ -47,20 +54,24 @@ router.post("/add", async (req, res) => {
     } else if (status === "Review") {
       progress = 90;
     } else if (status === "On Hold" || status === "Cancelled") {
-      progress = 0;  // or set any other logic for these statuses
+      progress = 0;
     } else if (status === "Under Analysis") {
-      progress = 50;  // Default progress for these statuses, you can change it
+      progress = 50;
     }
 
     // Create a new project
     const newProject = new Project({
       name,
       clientEmail,
-      clientId,  // Assign the clientId here
+      clientId,
       status,
       progress,
       lastUpdate: new Date().toISOString(),
       description,
+      features,
+      budget,
+      deadline,
+      daysRemaining,
     });
 
     await newProject.save();
@@ -71,28 +82,70 @@ router.post("/add", async (req, res) => {
   }
 });
 
-// Update a project
-router.put("/:id", async (req, res) => {
+// Update a project - Fixed the route path by removing "update" from the beginning
+router.put("/update/:id", async (req, res) => {
+  const { name, clientEmail, status, description, features, budget, deadline } = req.body;
+
   try {
+    // Calculate days remaining if the deadline has changed
+    const deadlineDate = new Date(deadline);
+    const currentDate = new Date();
+    const timeDiff = deadlineDate.getTime() - currentDate.getTime();
+    const daysRemaining = Math.ceil(timeDiff / (1000 * 60 * 60 * 24));
+
+    // Update the project
     const updatedProject = await Project.findByIdAndUpdate(
       req.params.id,
-      { ...req.body, lastUpdate: new Date().toISOString() },
+      {
+        name,
+        clientEmail,
+        status,
+        description,
+        features,
+        budget,
+        deadline,
+        daysRemaining,
+        lastUpdate: new Date().toISOString(),
+      },
       { new: true }
     );
+
+    if (!updatedProject) {
+      return res.status(404).json({ error: "Project not found" });
+    }
+
     res.status(200).json(updatedProject);
   } catch (err) {
+    console.error("Update error:", err);
     res.status(400).json({ error: "Failed to update project" });
   }
 });
 
 // Delete a project
-router.delete("/:id", async (req, res) => {
+router.delete("/delete/:id", async (req, res) => {
   try {
-    await Project.findByIdAndDelete(req.params.id);
+    const deletedProject = await Project.findByIdAndDelete(req.params.id);
+    if (!deletedProject) {
+      return res.status(404).json({ error: "Project not found" });
+    }
     res.status(200).json({ message: "Project deleted" });
   } catch (err) {
     res.status(500).json({ error: "Failed to delete project" });
   }
 });
+router.get("/clientshow", auth, async (req, res) => {
+  const { status } = req.query
+  try {
+    const query = { clientId: req.user.id }
+    if (status) {
+      query.status = status
+    }
+    const projects = await Project.find(query)
+    res.status(200).json(projects)
+  } catch (err) {
+    console.error("Error fetching projects:", err)
+    res.status(500).json({ error: "Failed to fetch projects", details: err.message })
+  }
+})
 
 module.exports = router;
