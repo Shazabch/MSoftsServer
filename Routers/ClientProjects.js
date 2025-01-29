@@ -53,6 +53,8 @@ router.post("/add", async (req, res) => {
       progress = 100;
     } else if (status === "Review") {
       progress = 90;
+    } else if (status === "Starting Project") {
+      progress = 10;
     } else if (status === "On Hold" || status === "Cancelled") {
       progress = 0;
     } else if (status === "Under Analysis") {

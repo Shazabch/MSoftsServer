@@ -13,7 +13,8 @@ const projectSchema = new mongoose.Schema({
       "Completed",
       "On Hold",            
       "Cancelled",          // New status
-      "Under Analysis"      // New status
+      "Under Analysis" ,
+      "Starting Project"     // New status
     ],
     default: "In Progress",
   },
