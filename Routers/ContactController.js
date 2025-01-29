@@ -185,6 +185,75 @@ router.patch("/update-status/:id", async (req, res) => {
     })
   }
 })
+// Get all messages with pagination
+router.get("/show", async (req, res) => {
+  const { page = 1, limit = 15, showArchived = "false", showOnlyActive = "false" } = req.query
+  const skip = (page - 1) * limit
+
+  try {
+    const query = {}
+    if (showArchived === "true") {
+      query.archived = true
+    } else if (showOnlyActive === "true") {
+      query.status = "Active"
+      query.archived = false
+    } else {
+      query.archived = { $ne: true }
+    }
+
+    const [totalMessages, activeMessages, archivedMessages, messages, totalFilteredMessages] = await Promise.all([
+      ContactInquiries.countDocuments(),
+      ContactInquiries.countDocuments({ status: "Active", archived: false }),
+      ContactInquiries.countDocuments({ archived: true }),
+      ContactInquiries.find(query).sort({ createdAt: -1 }).skip(skip).limit(Number(limit)),
+      ContactInquiries.countDocuments(query),
+    ])
+
+    // Check for existing clients and update status if necessary
+    const updatedMessages = await Promise.all(
+      messages.map(async (message) => {
+        const existingClient = await Clients.findOne({ email: message.email })
+        if (existingClient) {
+          // If the client exists, update the message status to match the client's status
+          if (message.status !== existingClient.status) {
+            await ContactInquiries.findByIdAndUpdate(message._id, { status: existingClient.status })
+            message.status = existingClient.status
+          }
+        }
+        return message
+      }),
+    )
+
+    let updatedActiveMessages = activeMessages
+
+    // Update active message count based on client status
+    for (const message of updatedMessages) {
+      if (message.status === "Active" && !message.archived) {
+        if (updatedActiveMessages > activeMessages) {
+          updatedActiveMessages++
+        } else if (updatedActiveMessages < activeMessages) {
+          updatedActiveMessages--
+        }
+      }
+    }
+
+    const totalPages = Math.ceil(totalFilteredMessages / limit)
+
+    const response = {
+      messages: updatedMessages,
+      currentPage: Number(page),
+      totalPages,
+      totalMessages,
+      activeMessages: updatedActiveMessages,
+      archivedMessages,
+    }
+    res.json(response)
+  } catch (error) {
+    console.error("Error fetching messages:", error)
+    res.status(500).json({ error: "Internal Server Error", details: error.message })
+  }
+})
+
 // Endpoint to handle contact form submissions
 router.post("/", async (req, res) => {
   const { name, email, phone, message, inquiryType } = req.body;
@@ -288,49 +357,6 @@ router.post("/", async (req, res) => {
       .json({ error: "Failed to send message. Please try again later." });
   }
 });
-// Get all messages with pagination
-router.get("/show", async (req, res) => {
-  const { page = 1, limit = 15, showArchived = "false", showOnlyActive = "false" } = req.query
-  const skip = (page - 1) * limit
-
-  try {
-    const query = {}
-    if (showArchived === "true") {
-      query.archived = true
-    } else if (showOnlyActive === "true") {
-      query.$or = [
-        { status: "Active", archived: false },
-        { status: "Active", archived: true },
-      ]
-    } else {
-      query.archived = { $ne: true }
-    }
-
-    const [totalMessages, activeMessages, archivedMessages, messages, totalFilteredMessages] = await Promise.all([
-      ContactInquiries.countDocuments(),
-      ContactInquiries.countDocuments({ status: "Active" }),
-      ContactInquiries.countDocuments({ archived: true }),
-      ContactInquiries.find(query).sort({ createdAt: -1 }).skip(skip).limit(Number(limit)),
-      ContactInquiries.countDocuments(query),
-    ])
-
-    const totalPages = Math.ceil(totalFilteredMessages / limit)
-
-    const response = {
-      messages,
-      currentPage: Number(page),
-      totalPages,
-      totalMessages,
-      activeMessages,
-      archivedMessages,
-    }
-    res.json(response)
-  } catch (error) {
-    console.error("Error fetching messages:", error)
-    res.status(500).json({ error: "Internal Server Error", details: error.message })
-  }
-})
-
 // New route for archiving a message
 router.patch("/archive/:id", async (req, res) => {
   const { id } = req.params;
