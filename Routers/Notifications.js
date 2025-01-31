@@ -3,35 +3,27 @@ const router = express.Router()
 const mongoose = require("mongoose")
 const nodemailer = require("nodemailer")
 const socketManager = require("../Socket.io/Socket")
-
-// Notification Model
 const Notification = require("../Models/Notifications")
 
-// Email Utility
+// 📌 **Email Utility Function**
 const sendEmail = async ({ to, subject, text }) => {
   try {
     const transporter = nodemailer.createTransport({
-      service: "gmail", // Use the email service of your choice
+      service: "gmail",
       auth: {
-        user: process.env.EMAIL_USER, // Your email
-        pass: process.env.EMAIL_PASSWORD, // Your email password (or app password)
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASSWORD,
       },
     })
 
-    const mailOptions = {
-      from: process.env.EMAIL_USER,
-      to,
-      subject,
-      text,
-    }
-
+    const mailOptions = { from: process.env.EMAIL_USER, to, subject, text }
     await transporter.sendMail(mailOptions)
   } catch (error) {
     console.error("Error sending email:", error)
   }
 }
 
-// Middleware to authenticate user (you may already have one)
+// 📌 **Middleware to Authenticate User**
 const authenticateUser = (req, res, next) => {
   if (!req.client) {
     return res.status(401).json({ error: "Unauthorized" })
@@ -39,23 +31,56 @@ const authenticateUser = (req, res, next) => {
   next()
 }
 
-// Get all notifications for the logged-in user
+// 📌 **Get All Unread Notifications for Admin**
 router.get("/admin/show", async (req, res) => {
   try {
-    // Fetch all notifications, sorted by newest first
-    const notifications = await Notification.find().sort({ createdAt: -1 })
+    const notifications = await Notification.find({ markAsRead: false }).sort({ createdAt: -1 })
     res.status(200).json(notifications)
   } catch (error) {
-    console.error("Error fetching notifications:", error)
-    res.status(500).json({ error: "Failed to fetch notifications" })
+    console.error("Error fetching unread notifications:", error)
+    res.status(500).json({ error: "Failed to fetch unread notifications" })
   }
 })
 
-// Mark all notifications as read for the authenticated user
+// 📌 **Get All Notifications (Read & Unread)**
+router.get("/admin/all", async (req, res) => {
+ try {
+   // 🔥 Fetch all notifications (both read & unread)
+   const notifications = await Notification.find().sort({ createdAt: -1 })
+
+   res.status(200).json(notifications)
+ } catch (error) {
+   console.error("Error fetching notifications:", error)
+   res.status(500).json({ error: "Failed to fetch notifications" })
+ }
+})
+
+
+// 📌 **Mark Single Notification as Read**
+router.patch("/admin/mark/:notificationId/read", async (req, res) => {
+  try {
+    const { notificationId } = req.params
+    const updatedNotification = await Notification.findByIdAndUpdate(
+      notificationId,
+      { markAsRead: true },
+      { new: true }
+    )
+
+    if (!updatedNotification) {
+      return res.status(404).json({ error: "Notification not found" })
+    }
+
+    res.status(200).json(updatedNotification)
+  } catch (error) {
+    console.error("Error marking notification as read:", error)
+    res.status(500).json({ error: "Failed to mark notification as read" })
+  }
+})
+
+// 📌 **Mark All Notifications as Read**
 router.patch("/admin/mark-all", async (req, res) => {
   try {
     const notifications = req.body.notifications
-
     if (!notifications || notifications.length === 0) {
       return res.status(400).json({ error: "No notifications provided" })
     }
@@ -64,11 +89,10 @@ router.patch("/admin/mark-all", async (req, res) => {
 
     const result = await Notification.updateMany(
       { _id: { $in: notificationIds }, markAsRead: false },
-      { $set: { markAsRead: true } },
+      { $set: { markAsRead: true } }
     )
 
     if (result.modifiedCount > 0) {
-      // Emit a Socket.IO event to notify clients about the update
       const io = socketManager.getIO()
       io.emit("notifications_updated")
       res.json({ message: "Notifications marked as read successfully" })
@@ -81,17 +105,15 @@ router.patch("/admin/mark-all", async (req, res) => {
   }
 })
 
-// Request progress and create notification
+// 📌 **Client Request Progress & Create Notification**
 router.post("/request-progress", authenticateUser, async (req, res) => {
   try {
     const { clientId, clientName, projectId, projectName, message, projectDescription, lastUpdate, progress } = req.body
 
     if (!req.client) {
-      console.log("No client data found")
       return res.status(401).json({ error: "Unauthorized: No client data found" })
     }
 
-    // Create a new notification with the exact details from frontend
     const notification = await Notification.create({
       clientId,
       clientName,
@@ -101,10 +123,9 @@ router.post("/request-progress", authenticateUser, async (req, res) => {
       message,
       lastUpdate,
       progress,
-      markAsRead: false, // Notification is unread by default
+      markAsRead: false,
     })
 
-    // Emit a Socket.IO event to notify clients about the new notification
     const io = socketManager.getIO()
     io.emit("new_notification", notification)
 
@@ -116,4 +137,3 @@ router.post("/request-progress", authenticateUser, async (req, res) => {
 })
 
 module.exports = router
-
