@@ -24,6 +24,7 @@ const ClientsRouter = require("./Routers/ClientsAdmin")
 const ClientsLoginRouter = require("./Routers/ClientLogin")
 const ClientsProjectsRouter = require("./Routers/ClientProjects")
 const ProgressNotificationRouter = require("./Routers/Notifications")
+const ChatRouter = require("./Routers/Chat")
 
 // Initialize Express app
 const app = express()
@@ -81,6 +82,7 @@ app.use("/api/clients", ClientsRouter)
 app.use("/api/user", ClientsLoginRouter)
 app.use("/api/client/projects", ClientsProjectsRouter)
 app.use("/api/notifications", ProgressNotificationRouter)
+app.use("/api/chat", ChatRouter)
 
 // Set the PORT
 const PORT = process.env.PORT || 5000
