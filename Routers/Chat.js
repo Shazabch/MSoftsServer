@@ -1,6 +1,6 @@
 const express = require("express")
 const router = express.Router()
-const Chat = require("../models/Chat")
+const Chat = require("../Models/Chat")
 
 // Get chat history for a specific client
 router.get("/:clientId", async (req, res) => {

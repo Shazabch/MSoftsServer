@@ -8,17 +8,21 @@ const session = require('express-session');
 const MongoStore = require('connect-mongo');
 
 // Import routes
-const authRoutes = require('../Routers/Auth');
-const subAdminRoutes = require('../Routers/SubAdmin');
-const RolesRoutes = require('../Routers/Roles');
-const testimonialRoutes = require('../Routers/Feedback');
-const contactRouter = require('../Routers/ContactController');
-const InquiryRouter = require('../Routers/CostInquiry');
-const TeamMemberRouter = require('../Routers/TeamMember');
-const BlogPostsRouter = require('../Routers/BlogsPosts');
-const projectRoutes = require('../Routers/Projects');
-const NewsletterRouter = require('../Routers/Newsletter');
-
+const authRoutes = require("../Routers/Auth")
+const subAdminRoutes = require("../Routers/SubAdmin")
+const RolesRoutes = require("../Routers/Roles")
+const testimonialRoutes = require("../Routers/Feedback")
+const contactRouter = require("../Routers/ContactController")
+const InquiryRouter = require("../Routers/CostInquiry")
+const TeamMemberRouter = require("../Routers/TeamMember")
+const BlogPostsRouter = require("../Routers/BlogsPosts")
+const projectRoutes = require("../Routers/Projects")
+const NewsletterRouter = require("../Routers/Newsletter")
+const ClientsRouter = require("../Routers/ClientsAdmin")
+const ClientsLoginRouter = require("../Routers/ClientLogin")
+const ClientsProjectsRouter = require("../Routers/ClientProjects")
+const ProgressNotificationRouter = require("../Routers/Notifications")
+const ChatRouter = require("../Routers/Chat")
 // Initialize Express app
 const app = express();
 
@@ -57,16 +61,21 @@ mongoose
   .catch((err) => console.error('MongoDB connection error:', err));
 
 // Define routes
-app.use('/api/auth', authRoutes);
-app.use('/api/subadmins', subAdminRoutes);
-app.use('/api/roles', RolesRoutes);
-app.use('/api/testimonials', testimonialRoutes);
-app.use('/contact', contactRouter);
-app.use('/api/inquiry', InquiryRouter);
-app.use('/api/team', TeamMemberRouter);
-app.use('/api/project', projectRoutes);
-app.use('/api/blog', BlogPostsRouter);
-app.use('/api/newsletter', NewsletterRouter);
+app.use("/api/auth", authRoutes)
+app.use("/api/subadmins", subAdminRoutes)
+app.use("/api/roles", RolesRoutes)
+app.use("/api/testimonials", testimonialRoutes)
+app.use("/contact", contactRouter)
+app.use("/api/inquiry", InquiryRouter)
+app.use("/api/team", TeamMemberRouter)
+app.use("/api/project", projectRoutes)
+app.use("/api/blog", BlogPostsRouter)
+app.use("/api/newsletter", NewsletterRouter)
+app.use("/api/clients", ClientsRouter)
+app.use("/api/user", ClientsLoginRouter)
+app.use("/api/client/projects", ClientsProjectsRouter)
+app.use("/api/notifications", ProgressNotificationRouter)
+app.use("/api/chat", ChatRouter)
 
 // Set the PORT
 const PORT = process.env.PORT || 5000;
