@@ -56,13 +56,36 @@ router.post('/saveblog', upload.single('image'), async (req, res) => {
 // GET route to fetch all blog posts
 router.get('/allblogs', async (req, res) => {
   try {
-    const blogPosts = await BlogPost.find(); // Find all blog posts in the database
-    res.json({ success: true, data: blogPosts });
+    const page = Math.max(1, parseInt(req.query.page) || 1);
+    const limit = Math.max(1, parseInt(req.query.limit) || 6);
+    const skip = (page - 1) * limit;
+    
+    // Add sort by created_at in descending order
+    const blogPosts = await BlogPost.find()
+      .sort({ created_at: -1 }) // This line ensures latest posts appear first
+      .skip(skip)
+      .limit(limit);
+
+    const totalPosts = await BlogPost.countDocuments();
+    const totalPages = Math.ceil(totalPosts / limit);
+
+    res.json({
+      success: true,
+      data: blogPosts,
+      pagination: {
+        currentPage: page,
+        totalPages,
+        totalPosts,
+        limit,
+      }
+    });
   } catch (err) {
     console.error(err);
     res.status(500).json({ success: false, message: 'Error fetching blog posts' });
   }
 });
+
+
 
 // Route to update a blog post
 router.put('/updateblog/:slug', upload.single('image'), async (req, res) => {
