@@ -27,7 +27,6 @@ router.post("/reset-password", async (req, res) => {
 
     // Sign the token with a secret key and expiration (1 hour)
     const resetToken = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '1h' });
-    console.log("Generated Reset Token:", resetToken); // Debugging token generation
 
     // Create the reset link
     const resetLink = `http://localhost:5173/reset-password/${encodeURIComponent(resetToken)}`;
@@ -76,14 +75,12 @@ router.post("/reset-password", async (req, res) => {
     // Send the reset email
     try {
       const info = await transporter.sendMail(mailOptions);
-      console.log("Email sent successfully:", info.messageId);
       res.json({ 
         message: "Password reset link sent to your email.",
         messageId: info.messageId 
       });
     } catch (error) {
-      console.error("Email Send Error:", error);
-      return res.status(500).json({ 
+       return res.status(500).json({ 
         message: "Failed to send reset email",
         details: process.env.NODE_ENV === 'development' ? error.message : undefined
       });

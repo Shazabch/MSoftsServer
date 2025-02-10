@@ -3,7 +3,6 @@ const mongoose = require("mongoose")
 const cors = require("cors")
 const path = require("path")
 const dotenv = require("dotenv")
-dotenv.config() // Load environment variables
 const session = require("express-session")
 const MongoStore = require("connect-mongo")
 const http = require("http")
@@ -26,6 +25,8 @@ const ClientsProjectsRouter = require("./Routers/ClientProjects")
 const ProgressNotificationRouter = require("./Routers/Notifications")
 const ChatRouter = require("./Routers/Chat")
 const ResetRouter = require("./Routers/ResetPassword")
+const LinkedInRouter = require("./Routers/LinkedInAuth")
+const ProfileRouter = require("./Routers/ClientProfile")
 
 // Initialize Express app
 const app = express()
@@ -36,8 +37,11 @@ const io = socketManager.init(server)
 
 // Middleware
 app.use(cors())
+
 app.use(express.json())
+
 app.use("/uploads", express.static(path.join(__dirname, "./Multer/Uploads")))
+
 app.use(
   session({
     secret: process.env.SESSION_SECRET || "defaultSecret", // Use a strong secret
@@ -85,6 +89,8 @@ app.use("/api/client/projects", ClientsProjectsRouter)
 app.use("/api/notifications", ProgressNotificationRouter)
 app.use("/api/chat", ChatRouter)
 app.use("/api/reset", ResetRouter)
+app.use("/api/linkedin", LinkedInRouter)
+app.use("/api/profile", ProfileRouter)
 
 // Set the PORT
 const PORT = process.env.PORT || 5000
