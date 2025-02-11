@@ -1,100 +1,76 @@
 const express = require('express');
 const router = express.Router();
 const multer = require('multer');
-const cloudinary = require('cloudinary').v2;
-const { CloudinaryStorage } = require('multer-storage-cloudinary');
-const Client = require('../Models/ClientProfileModel');
+const path = require('path');
+const Client = require('../Models/Clients');
 
-// Configure Cloudinary
-cloudinary.config({
-  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-  api_key: process.env.CLOUDINARY_API_KEY,
-  api_secret: process.env.CLOUDINARY_API_SECRET
-});
-
-// Configure Cloudinary storage
-const storage = new CloudinaryStorage({
-  cloudinary: cloudinary,
-  params: {
-    folder: 'client_avatars',
-    allowed_formats: ['jpg', 'jpeg', 'png'],
-    transformation: [{ width: 500, height: 500, crop: 'fill' }]
+// Configure multer for file upload
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, 'uploads/'); // Make sure this directory exists
+  },
+  filename: function (req, file, cb) {
+    cb(null, Date.now() + '-' + file.fieldname + path.extname(file.originalname)); // Unique filename
   }
 });
 
 const upload = multer({ storage: storage });
 
-// Get client profile
-router.get('/profile',  async (req, res) => {
+// Get client profile by ID
+router.get('/show/:id', async (req, res) => {
   try {
-    const client = await Client.findById(req.user.id).select('-password');
+    const client = await Client.findById(req.params.id);
+    
     if (!client) {
+      console.log(`⚠️ [NOT FOUND] Client with ID ${req.params.id} does not exist.`);
       return res.status(404).json({ message: 'Client not found' });
     }
+
     res.json(client);
   } catch (error) {
-    console.error('Error fetching profile:', error);
-    res.status(500).json({ message: 'Server error' });
+    console.error(`❌ [ERROR] Failed to fetch client with ID ${req.params.id}: ${error.message}`);
+    res.status(500).json({ message: 'Server error', error: error.message });
   }
 });
 
 // Update client profile
-router.put('/update-profile', async (req, res) => {
+router.put('/update/:id', upload.fields([{ name: 'avatar', maxCount: 1 }, { name: 'coverImage', maxCount: 1 }]), async (req, res) => {
   try {
-    const { name, phone, company, address } = req.body;
+    console.log('🔄 [UPDATE REQUEST] Client ID:', req.params.id);
+    console.log('📩 [REQUEST BODY]:', req.body);
+    console.log('📁 [UPLOADED FILES]:', req.files);
+
+    const updateData = { ...req.body };
+
+    // Avatar and Cover Image Handling (if they are uploaded)
+    if (req.files?.avatar) {
+      updateData.avatar = req.files.avatar[0].path;
+      console.log('🖼️ [NEW AVATAR UPLOADED]:', updateData.avatar);
+    }
+
+    if (req.files?.coverImage) {
+      updateData.coverImage = req.files.coverImage[0].path;
+      console.log('🖼️ [NEW COVER IMAGE UPLOADED]:', updateData.coverImage);
+    }
+
+    // Prevent updating email and name
+    delete updateData.email;
+    delete updateData.name;
+
+    console.log('📝 [FINAL UPDATE DATA]:', updateData);
+
+    const updatedClient = await Client.findByIdAndUpdate(req.params.id, updateData, { new: true });
     
-    // Find client and update
-    const client = await Client.findById(req.user.id);
-    if (!client) {
+    if (!updatedClient) { 
+      console.log(`⚠️ [NOT FOUND] Client with ID ${req.params.id} does not exist.`);
       return res.status(404).json({ message: 'Client not found' });
     }
 
-    // Update fields
-    if (name) client.name = name;
-    if (phone) client.phone = phone;
-    if (company) client.company = company;
-    if (address) client.address = address;
-
-    await client.save();
-    
-    // Return updated client without password
-    const updatedClient = await Client.findById(req.user.id).select('-password');
+    console.log('✅ [UPDATE SUCCESS]:', updatedClient);
     res.json(updatedClient);
   } catch (error) {
-    console.error('Error updating profile:', error);
-    res.status(500).json({ message: 'Server error' });
-  }
-});
-
-// Upload avatar
-router.post('/upload-avatar', upload.single('avatar'), async (req, res) => {
-  try {
-    if (!req.file) {
-      return res.status(400).json({ message: 'No file uploaded' });
-    }
-
-    const client = await Client.findById(req.user.id);
-    if (!client) {
-      return res.status(404).json({ message: 'Client not found' });
-    }
-
-    // If there's an existing avatar, delete it from Cloudinary
-    if (client.avatar && client.avatar.includes('cloudinary')) {
-      const publicId = client.avatar.split('/').pop().split('.')[0];
-      await cloudinary.uploader.destroy(`client_avatars/${publicId}`);
-    }
-
-    // Update client with new avatar URL
-    client.avatar = req.file.path;
-    await client.save();
-
-    res.json({ 
-      message: 'Avatar uploaded successfully',
-      avatarUrl: req.file.path
-    });
-  } catch (error) {
-    console.error('Error uploading avatar:', error);
-    res.status(500).json({ message: 'Server error' });
+    console.error('❌ [SERVER ERROR]:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
   }
 });
 

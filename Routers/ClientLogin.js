@@ -90,13 +90,18 @@ router.post('/login', async (req, res) => {
     const client = await Clients.findOne({ email });
 
     if (!client) {
-      return res.status(404).json({ error: 'Email not found' });
+      return res.status(401).json({ error: 'Invalid email or password' });
     }
+
+    // // Check if the account is active
+    // if (client.status !== 'Active') {
+    //   return res.status(403).json({ error: 'Account is not active' });
+    // }
 
     // Verify the password
     const isValidPassword = await bcrypt.compare(password, client.password);
     if (!isValidPassword) {
-      return res.status(401).json({ error: 'Incorrect password' });
+      return res.status(401).json({ error: 'Invalid email or password' });
     }
 
     // Generate a JWT token for the client
