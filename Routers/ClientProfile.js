@@ -1,20 +1,34 @@
 const express = require('express');
 const router = express.Router();
 const multer = require('multer');
-const path = require('path');
 const Client = require('../Models/Clients');
+const cloudinary = require('cloudinary').v2;
+const { CloudinaryStorage } = require('multer-storage-cloudinary');
 
-// Configure multer for file upload
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, 'uploads/'); // Make sure this directory exists
-  },
-  filename: function (req, file, cb) {
-    cb(null, Date.now() + '-' + file.fieldname + path.extname(file.originalname)); // Unique filename
-  }
+// Configure Cloudinary
+cloudinary.config({
+  cloud_name: "dybotqozo",
+  api_key: "176444681733414",
+  api_secret: "Iio2fclIU0VyxjD1iE_qW2tbxTg"
 });
 
-const upload = multer({ storage: storage });
+// Configure Cloudinary storage
+const storage = new CloudinaryStorage({
+  cloudinary: cloudinary,
+  params: {
+    folder: 'client_profiles',
+    allowed_formats: ['jpg', 'jpeg', 'png', 'gif'],
+    transformation: [{ width: 1000, height: 1000, crop: 'limit' }], // Resize images if needed
+  },
+});
+
+// Configure multer with Cloudinary storage
+const upload = multer({
+  storage: storage,
+  limits: {
+    fileSize: 5 * 1024 * 1024 // 5MB limit
+  }
+});
 
 // Get client profile by ID
 router.get('/show/:id', async (req, res) => {
@@ -34,23 +48,46 @@ router.get('/show/:id', async (req, res) => {
 });
 
 // Update client profile
-router.put('/update/:id', upload.fields([{ name: 'avatar', maxCount: 1 }, { name: 'coverImage', maxCount: 1 }]), async (req, res) => {
+router.put('/update/:id', upload.fields([
+  { name: 'avatar', maxCount: 1 },
+  { name: 'coverImage', maxCount: 1 }
+]), async (req, res) => {
   try {
     console.log('🔄 [UPDATE REQUEST] Client ID:', req.params.id);
     console.log('📩 [REQUEST BODY]:', req.body);
     console.log('📁 [UPLOADED FILES]:', req.files);
 
-    const updateData = { ...req.body };
-
-    // Avatar and Cover Image Handling (if they are uploaded)
-    if (req.files?.avatar) {
-      updateData.avatar = req.files.avatar[0].path;
-      console.log('🖼️ [NEW AVATAR UPLOADED]:', updateData.avatar);
+    // Get the current client data
+    const currentClient = await Client.findById(req.params.id);
+    if (!currentClient) {
+      return res.status(404).json({ message: 'Client not found' });
     }
 
-    if (req.files?.coverImage) {
-      updateData.coverImage = req.files.coverImage[0].path;
-      console.log('🖼️ [NEW COVER IMAGE UPLOADED]:', updateData.coverImage);
+    const updateData = { ...req.body };
+
+    // Handle file uploads
+    if (req.files) {
+      // Handle avatar upload
+      if (req.files.avatar) {
+        // Delete old avatar from Cloudinary if it exists
+        if (currentClient.avatar) {
+          const publicId = currentClient.avatar.split('/').pop().split('.')[0];
+          await cloudinary.uploader.destroy(`client_profiles/${publicId}`);
+        }
+        updateData.avatar = req.files.avatar[0].path;
+        console.log('🖼️ [NEW AVATAR UPLOADED]:', updateData.avatar);
+      }
+
+      // Handle cover image upload
+      if (req.files.coverImage) {
+        // Delete old cover image from Cloudinary if it exists
+        if (currentClient.coverImage) {
+          const publicId = currentClient.coverImage.split('/').pop().split('.')[0];
+          await cloudinary.uploader.destroy(`client_profiles/${publicId}`);
+        }
+        updateData.coverImage = req.files.coverImage[0].path;
+        console.log('🖼️ [NEW COVER IMAGE UPLOADED]:', updateData.coverImage);
+      }
     }
 
     // Prevent updating email and name
@@ -59,9 +96,13 @@ router.put('/update/:id', upload.fields([{ name: 'avatar', maxCount: 1 }, { name
 
     console.log('📝 [FINAL UPDATE DATA]:', updateData);
 
-    const updatedClient = await Client.findByIdAndUpdate(req.params.id, updateData, { new: true });
+    const updatedClient = await Client.findByIdAndUpdate(
+      req.params.id,
+      updateData,
+      { new: true }
+    );
     
-    if (!updatedClient) { 
+    if (!updatedClient) {
       console.log(`⚠️ [NOT FOUND] Client with ID ${req.params.id} does not exist.`);
       return res.status(404).json({ message: 'Client not found' });
     }
