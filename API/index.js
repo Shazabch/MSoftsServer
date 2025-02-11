@@ -6,7 +6,8 @@ const dotenv = require('dotenv');
 dotenv.config(); // Load environment variables
 const session = require('express-session');
 const MongoStore = require('connect-mongo');
-
+const http = require("http")
+const socketManager = require("../Socket.io/Socket")
 // Import routes
 const authRoutes = require("../Routers/Auth")
 const subAdminRoutes = require("../Routers/SubAdmin")
@@ -29,10 +30,13 @@ const ProfileRouter = require("../Routers/ClientProfile")
 
 // Initialize Express app
 const app = express();
+const server = http.createServer(app)
+const io = socketManager.init(server)
+
 
 // Root route
 app.get('/', (req, res) => {
-  res.send('Welcome to MSofts Server!');
+  res.send('Welcome to MSofts Server! The Server is Live');
 });
 
 // Middleware
@@ -63,7 +67,13 @@ mongoose
   })
   .then(() => console.log('Connected to MongoDB'))
   .catch((err) => console.error('MongoDB connection error:', err));
-
+// Socket.IO connection handler
+io.on("connection", (socket) => {
+  // console.log("New client connected")
+  socket.on("disconnect", () => {
+    // console.log("Client disconnected")
+  })
+})
 // Define routes
 app.use("/api/auth", authRoutes)
 app.use("/api/subadmins", subAdminRoutes)

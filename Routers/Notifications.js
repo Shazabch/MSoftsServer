@@ -35,6 +35,7 @@ const authenticateUser = (req, res, next) => {
 router.get("/admin/show", async (req, res) => {
   try {
     const notifications = await Notification.find({ markAsRead: false }).sort({ createdAt: -1 })
+    console.log("Notifications:", notifications)
     res.status(200).json(notifications)
   } catch (error) {
     console.error("Error fetching unread notifications:", error)
