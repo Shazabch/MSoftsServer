@@ -46,7 +46,6 @@ router.get('/show/:id', async (req, res) => {
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 });
-
 // Update client profile
 router.put('/update/:id', upload.fields([
   { name: 'avatar', maxCount: 1 },
