@@ -45,28 +45,30 @@ router.get('/', auth, async (req, res) => {
 
 // Send a new message
 router.post('/', auth, async (req, res) => {
-  try {
-    console.log('User from token:', req.user);
-    console.log('Request body:', req.body);
+ try {
+   // Get the role from the token (req.user is populated by your auth middleware)
+   const role = req.user.role; // 'client' or 'admin'
 
-    const message = new Message({
-      senderEmail: req.user.email,
-      recipientEmail: req.body.recipientEmail,
-      content: req.body.content
-    });
+   const message = new Message({
+     senderEmail: req.user.email,
+     recipientEmail: req.body.recipientEmail,
+     content: req.body.content,
+     role: role // Assign role from the token
+   });
 
-    const newMessage = await message.save();
-    
-    // Emit socket event if socket.io is set up
-    if (req.app.get('io')) {
-      req.app.get('io').to(req.body.recipientEmail).emit('newMessage', newMessage);
-    }
-    
-    res.status(201).json(newMessage);
-  } catch (error) {
-    console.error('Error sending message:', error);
-    res.status(400).json({ message: error.message });
-  }
+   const newMessage = await message.save();
+   
+   // Emit socket event if socket.io is set up
+   if (req.app.get('io')) {
+     req.app.get('io').to(req.body.recipientEmail).emit('newMessage', newMessage);
+   }
+   
+   res.status(201).json(newMessage);
+ } catch (error) {
+   console.error('Error sending message:', error);
+   res.status(400).json({ message: error.message });
+ }
 });
+
 
 module.exports = router;

@@ -20,6 +20,10 @@ const messageSchema = new mongoose.Schema({
   read: {
     type: Boolean,
     default: false
+  },
+  role: {
+    type: String,
+    required: true
   }
 });
 
