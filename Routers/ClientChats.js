@@ -1,32 +1,51 @@
 const express = require('express');
 const router = express.Router();
-const Message = require('../Models/ClientChats'); // Adjust path as needed
-const auth = require('../Middlewere/Message'); // Adjust path as needed
+const Message = require('../Models/ClientChats');
+const auth = require('../Middlewere/Message');
 
-// Get messages for the logged-in user
-router.get('/', auth, async (req, res) => {
+// Get messages for a specific client
+router.get('/:clientEmail', auth, async (req, res) => {
   try {
-    // Add some debug logging
-    // console.log('User from token:', req.user);
+    const { clientEmail } = req.params;
+    console.log('Fetching messages for client:', clientEmail);
+    console.log('Admin email:', req.user.email);
 
     const messages = await Message.find({
       $or: [
-        { senderEmail: req.user.email },
-        { recipientEmail: req.user.email }
+        { senderEmail: clientEmail, recipientEmail: req.user.email },
+        { senderEmail: req.user.email, recipientEmail: clientEmail }
       ]
     }).sort({ timestamp: 1 });
     
+    console.log('Messages found:', messages.length);
     res.json(messages);
   } catch (error) {
     console.error('Error fetching messages:', error);
     res.status(500).json({ message: error.message });
   }
 });
+router.get('/', auth, async (req, res) => {
+ try {
+   // Add some debug logging
+   // console.log('User from token:', req.user);
+
+   const messages = await Message.find({
+     $or: [
+       { senderEmail: req.user.email },
+       { recipientEmail: req.user.email }
+     ]
+   }).sort({ timestamp: 1 });
+   
+   res.json(messages);
+ } catch (error) {
+   console.error('Error fetching messages:', error);
+   res.status(500).json({ message: error.message });
+ }
+});
 
 // Send a new message
 router.post('/', auth, async (req, res) => {
   try {
-    // Add some debug logging
     console.log('User from token:', req.user);
     console.log('Request body:', req.body);
 
