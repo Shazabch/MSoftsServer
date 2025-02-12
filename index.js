@@ -27,6 +27,7 @@ const ChatRouter = require("./Routers/Chat")
 const ResetRouter = require("./Routers/ResetPassword")
 const LinkedInRouter = require("./Routers/LinkedInAuth")
 const ProfileRouter = require("./Routers/ClientProfile")
+const ClientchatRouter = require("./Routers/ClientChats")
 
 // Initialize Express app
 const app = express()
@@ -66,9 +67,9 @@ mongoose
 
 // Socket.IO connection handler
 io.on("connection", (socket) => {
-  console.log("New client connected")
+  // console.log("New client connected")
   socket.on("disconnect", () => {
-    console.log("Client disconnected")
+    // console.log("Client disconnected")
   })
 })
 
@@ -91,6 +92,7 @@ app.use("/api/chat", ChatRouter)
 app.use("/api/reset", ResetRouter)
 app.use("/api/linkedin", LinkedInRouter)
 app.use("/api/profile", ProfileRouter)
+app.use("/api/clientchat", ClientchatRouter)
 
 // Set the PORT
 const PORT = process.env.PORT || 5000
