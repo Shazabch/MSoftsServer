@@ -1,67 +1,52 @@
 const express = require('express');
-const mongoose = require('mongoose');
-const dotenv = require('dotenv');
-
-dotenv.config();
-
 const router = express.Router();
+const Message = require('../Models/ClientChats'); // Adjust path as needed
+const auth = require('../Middlewere/Message'); // Adjust path as needed
 
-// Message Schema
-const messageSchema = new mongoose.Schema({
-  email: { type: String, required: true },
-  role: { type: String, required: true },
-  messages: [
-    {
-      content: { type: String, required: true },
-      timestamp: { type: Date, default: Date.now },
-    },
-  ],
-});
-
-const Message = mongoose.model('Message', messageSchema);
-
-// GET Messages
-router.get('/messages', async (req, res) => {
+// Get messages for the logged-in user
+router.get('/', auth, async (req, res) => {
   try {
-    const messages = await Message.find().sort({ 'messages.timestamp': 1 });
+    // Add some debug logging
+    // console.log('User from token:', req.user);
+
+    const messages = await Message.find({
+      $or: [
+        { senderEmail: req.user.email },
+        { recipientEmail: req.user.email }
+      ]
+    }).sort({ timestamp: 1 });
+    
     res.json(messages);
   } catch (error) {
-    res.status(500).json({ error: 'Error fetching messages' });
+    console.error('Error fetching messages:', error);
+    res.status(500).json({ message: error.message });
   }
 });
 
-// POST Message
-router.post('/messages', async (req, res) => {
-  const { sender, role, message, email } = req.body; // Added email to destructure from body
-  
-
-  // Attempt to save the message
+// Send a new message
+router.post('/', auth, async (req, res) => {
   try {
-    // Check if the email already exists in the database, if yes, append the new message
-    let messageDoc = await Message.findOne({ email });
+    // Add some debug logging
+    console.log('User from token:', req.user);
+    console.log('Request body:', req.body);
 
-    if (messageDoc) {
-      // If the message document exists, add the new message to the messages array
-      messageDoc.messages.push({
-        content: message, 
-        timestamp: new Date(),
-      });
-      await messageDoc.save();
-    } else {
-      // If the email is not found, create a new message document
-      messageDoc = new Message({
-        email,
-        role,
-        messages: [{ content: message, timestamp: new Date() }],
-      });
-      await messageDoc.save();
+    const message = new Message({
+      senderEmail: req.user.email,
+      recipientEmail: req.body.recipientEmail,
+      content: req.body.content
+    });
+
+    const newMessage = await message.save();
+    
+    // Emit socket event if socket.io is set up
+    if (req.app.get('io')) {
+      req.app.get('io').to(req.body.recipientEmail).emit('newMessage', newMessage);
     }
-
-    // Send back the saved message
-    res.status(201).json(messageDoc);
+    
+    res.status(201).json(newMessage);
   } catch (error) {
-    console.error('Error saving message:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    console.error('Error sending message:', error);
+    res.status(400).json({ message: error.message });
   }
 });
 

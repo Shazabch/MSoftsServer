@@ -92,7 +92,7 @@ app.use("/api/chat", ChatRouter)
 app.use("/api/reset", ResetRouter)
 app.use("/api/linkedin", LinkedInRouter)
 app.use("/api/profile", ProfileRouter)
-app.use("/api/clientchat", ClientchatRouter)
+app.use("/api/messages", ClientchatRouter)
 
 // Set the PORT
 const PORT = process.env.PORT || 5000
