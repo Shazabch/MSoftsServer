@@ -103,4 +103,57 @@ router.post("/", auth, async (req, res) => {
   }
 });
 
+// Get unread message counts for admin
+router.get("/unread-counts", auth, async (req, res) => {
+  try {
+    const unreadMessages = await Message.aggregate([
+      {
+        $match: {
+          recipientEmail: ADMIN_EMAIL,
+          read: false
+        }
+      },
+      {
+        $group: {
+          _id: "$senderEmail",
+          count: { $sum: 1 }
+        }
+      }
+    ]);
+
+    const unreadCounts = {};
+    unreadMessages.forEach(({ _id, count }) => {
+      unreadCounts[_id] = count;
+    });
+
+    res.json(unreadCounts);
+  } catch (error) {
+    console.error("Error fetching unread counts:", error);
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// Mark messages as read
+router.post("/read/:senderEmail", auth, async (req, res) => {
+  try {
+    const { senderEmail } = req.params;
+    
+    await Message.updateMany(
+      {
+        senderEmail,
+        recipientEmail: ADMIN_EMAIL,
+        read: false
+      },
+      {
+        $set: { read: true }
+      }
+    );
+
+    res.json({ message: "Messages marked as read" });
+  } catch (error) {
+    console.error("Error marking messages as read:", error);
+    res.status(500).json({ message: error.message });
+  }
+});
+
 module.exports = router;
