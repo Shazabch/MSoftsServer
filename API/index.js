@@ -27,6 +27,9 @@ const ChatRouter = require("../Routers/Chat")
 const ResetRouter = require("../Routers/ResetPassword")
 const LinkedInRouter = require("../Routers/LinkedInAuth")
 const ProfileRouter = require("../Routers/ClientProfile")
+const ClientchatRouter = require("../Routers/ClientChats")
+
+
 
 // Initialize Express app
 const app = express();
@@ -93,6 +96,8 @@ app.use("/api/chat", ChatRouter)
 app.use("/api/reset", ResetRouter)
 app.use("/api/linkedin", LinkedInRouter)
 app.use("/api/profile", ProfileRouter)
+app.use("/api/messages", ClientchatRouter)
+
 
 // Set the PORT
 const PORT = process.env.PORT || 5000;
