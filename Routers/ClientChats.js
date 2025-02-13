@@ -134,26 +134,31 @@ router.get("/unread-counts", auth, async (req, res) => {
 });
 
 // Mark messages as read
-router.post("/read/:senderEmail", auth, async (req, res) => {
+router.post("/read/:messageId", auth, async (req, res) => {
   try {
-    const { senderEmail } = req.params;
-    
-    await Message.updateMany(
-      {
-        senderEmail,
-        recipientEmail: ADMIN_EMAIL,
-        read: false
-      },
-      {
-        $set: { read: true }
-      }
+    const { messageId } = req.params;
+
+    // Mark the message as read
+    const updatedMessage = await Message.findByIdAndUpdate(
+      messageId,
+      { $set: { read: true } },
+      { new: true } // Return updated message
     );
 
-    res.json({ message: "Messages marked as read" });
+    if (!updatedMessage) {
+      return res.status(404).json({ message: "Message not found" });
+    }
+
+    // Emit messageRead event to all connected clients
+    req.app.get('socketio').emit('messageRead', messageId); // Ensure this line is emitting the event
+
+    res.json({ message: "Message marked as read" });
   } catch (error) {
-    console.error("Error marking messages as read:", error);
+    console.error("Error marking message as read:", error);
     res.status(500).json({ message: error.message });
   }
 });
+
+
 
 module.exports = router;
