@@ -2,11 +2,7 @@ const express = require("express");
 const router = express.Router();
 const Message = require("../Models/ClientChats");
 const auth = require("../Middlewere/Message");
-const io = require("../Socket.io/Socket"); // Ensure you have socket.io instance
-
-
-// Static admin email
-// Static admin credentials
+const io = require("../Socket.io/Socket");
 const ADMIN_EMAIL = "admin@example.com";
 const ADMIN_ROLE = "admin";
 
@@ -15,7 +11,6 @@ router.get("/:clientEmail", auth, async (req, res) => {
   try {
     const { clientEmail } = req.params;
     console.log("Fetching messages for client:", clientEmail);
-    console.log("Admin email:", ADMIN_EMAIL); // Static admin email
 
     const messages = await Message.find({
       $or: [
@@ -65,8 +60,10 @@ router.post("/admin", async (req, res) => {
 
     await newMessage.save();
 
-    // Emit message to client via socket
-    io.getIO().emit("newMessage", newMessage);
+    // Emit message to specific client
+    io.getIO().to(recipientEmail).emit("newMessage", newMessage);
+    // Also emit to admin room
+    io.getIO().to(ADMIN_EMAIL).emit("newMessage", newMessage);
 
     res.status(201).json(newMessage);
   } catch (error) {
@@ -74,26 +71,29 @@ router.post("/admin", async (req, res) => {
     res.status(500).json({ message: "Internal server error" });
   }
 });
+
 // Send a new message
 router.post("/", auth, async (req, res) => {
   try {
     const role = req.user.role; // 'client' or 'admin'
-
-    // Determine sender email based on role
-    const senderEmail = role === 'admin' ? ADMIN_EMAIL : req.user.email; // Static email for admin, token email for client
+    const senderEmail = role === 'admin' ? ADMIN_EMAIL : req.user.email;
 
     const message = new Message({
-      senderEmail: senderEmail, // Use the dynamic email for client, static for admin
+      senderEmail: senderEmail,
       recipientEmail: req.body.recipientEmail,
       content: req.body.content,
       role: role,
+      timestamp: new Date(),
+      read: false,
     });
 
     const newMessage = await message.save();
 
-    // Emit socket event if socket.io is set up
-    if (req.app.get("io")) {
-      req.app.get("io").to(req.body.recipientEmail).emit("newMessage", newMessage);
+    // Emit to recipient's room
+    io.getIO().to(req.body.recipientEmail).emit("newMessage", newMessage);
+    // If sender is client, also emit to admin room
+    if (role === 'client') {
+      io.getIO().to(ADMIN_EMAIL).emit("newMessage", newMessage);
     }
 
     res.status(201).json(newMessage);
