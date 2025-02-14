@@ -132,33 +132,45 @@ router.get("/unread-counts", auth, async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 });
-
-// Mark messages as read
-router.post("/read/:messageId", auth, async (req, res) => {
+router.post("/read-all/:clientEmail", auth, async (req, res) => {
   try {
-    const { messageId } = req.params;
+    const { clientEmail } = req.params
 
-    // Mark the message as read
-    const updatedMessage = await Message.findByIdAndUpdate(
-      messageId,
+    // Verify the user is an admin
+    // if (req.user.role !== "admin") {
+    //   return res.status(403).json({ message: "Unauthorized" })
+    // }
+
+    // Update all messages from the specified client to read
+    await Message.updateMany(
+      {
+        senderEmail: clientEmail,
+        recipientEmail: "admin@example.com",
+        read: false,
+      },
       { $set: { read: true } },
-      { new: true } // Return updated message
-    );
+    )
 
-    if (!updatedMessage) {
-      return res.status(404).json({ message: "Message not found" });
-    }
-
-    // Emit messageRead event to all connected clients
-    req.app.get('socketio').emit('messageRead', messageId); // Ensure this line is emitting the event
-
-    res.json({ message: "Message marked as read" });
+    res.json({ message: "All messages marked as read" })
   } catch (error) {
-    console.error("Error marking message as read:", error);
-    res.status(500).json({ message: error.message });
+    console.error("Error marking messages as read:", error)
+    res.status(500).json({ message: error.message })
   }
-});
+})
+// Mark messages as read
+router.post("/read-all", auth, async (req, res) => {
+  try {
+    const userEmail = req.user.email // Assuming auth middleware adds user to req
 
+    // Update all messages where the user is the recipient
+    await Message.updateMany({ recipientEmail: userEmail, read: false }, { $set: { read: true } })
+
+    res.json({ message: "All messages marked as read" })
+  } catch (error) {
+    console.error("Error marking messages as read:", error)
+    res.status(500).json({ message: error.message })
+  }
+})
 
 
 module.exports = router;
