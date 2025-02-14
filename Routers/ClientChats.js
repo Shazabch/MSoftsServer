@@ -6,7 +6,6 @@ const io = require("../Socket.io/Socket");
 const ADMIN_EMAIL = "admin@example.com";
 const ADMIN_ROLE = "admin";
 
-// Get messages for a specific client
 router.get("/:clientEmail", auth, async (req, res) => {
   try {
     const { clientEmail } = req.params;
@@ -27,7 +26,6 @@ router.get("/:clientEmail", auth, async (req, res) => {
   }
 });
 
-// Get all messages for the current user
 router.get("/", auth, async (req, res) => {
   try {
     const messages = await Message.find({
@@ -72,7 +70,6 @@ router.post("/admin", async (req, res) => {
   }
 });
 
-// Send a new message
 router.post("/", auth, async (req, res) => {
   try {
     const role = req.user.role; // 'client' or 'admin'
@@ -103,7 +100,6 @@ router.post("/", auth, async (req, res) => {
   }
 });
 
-// Get unread message counts for admin
 router.get("/unread-counts", auth, async (req, res) => {
   try {
     const unreadMessages = await Message.aggregate([
@@ -132,32 +128,34 @@ router.get("/unread-counts", auth, async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 });
-router.post("/read-all/:clientEmail", auth, async (req, res) => {
+
+router.post("/read-all/:messageId", auth, async (req, res) => {
   try {
-    const { clientEmail } = req.params
+    const { messageId } = req.params;
 
-    // Verify the user is an admin
-    // if (req.user.role !== "admin") {
-    //   return res.status(403).json({ message: "Unauthorized" })
-    // }
-
-    // Update all messages from the specified client to read
-    await Message.updateMany(
-      {
-        senderEmail: clientEmail,
-        recipientEmail: "admin@example.com",
-        read: false,
-      },
+    // Find and update message as read
+    const updatedMessage = await Message.findByIdAndUpdate(
+      messageId,
       { $set: { read: true } },
-    )
+      { new: true } // Return updated message
+    );
 
-    res.json({ message: "All messages marked as read" })
+    if (!updatedMessage) {
+      return res.status(404).json({ message: "Message not found" });
+    }
+
+    // Emit event for frontend
+    const io = req.app.get("socketio");
+    if (io) {
+      io.emit("messageRead", messageId);
+    }
+
+    res.json({ message: "Message marked as read", updatedMessage });
   } catch (error) {
-    console.error("Error marking messages as read:", error)
-    res.status(500).json({ message: error.message })
+    console.error("Error marking message as read:", error);
+    res.status(500).json({ message: error.message });
   }
-})
-// Mark messages as read
+});
 router.post("/read-all", auth, async (req, res) => {
   try {
     const userEmail = req.user.email // Assuming auth middleware adds user to req
@@ -171,6 +169,7 @@ router.post("/read-all", auth, async (req, res) => {
     res.status(500).json({ message: error.message })
   }
 })
+
 
 
 module.exports = router;
