@@ -129,33 +129,29 @@ router.get("/unread-counts", auth, async (req, res) => {
   }
 });
 
-router.post("/read-all/:messageId", auth, async (req, res) => {
+router.post("/read-all-admin", auth, async (req, res) => {
   try {
-    const { messageId } = req.params;
+    const { clientEmail } = req.body;
 
-    // Find and update message as read
-    const updatedMessage = await Message.findByIdAndUpdate(
-      messageId,
-      { $set: { read: true } },
-      { new: true } // Return updated message
+    // Update all messages for the client
+    const updatedMessages = await Message.updateMany(
+      { senderEmail: clientEmail, read: false },
+      { $set: { read: true } }
     );
-
-    if (!updatedMessage) {
-      return res.status(404).json({ message: "Message not found" });
-    }
 
     // Emit event for frontend
     const io = req.app.get("socketio");
     if (io) {
-      io.emit("messageRead", messageId);
+      io.emit("messagesRead", clientEmail);
     }
 
-    res.json({ message: "Message marked as read", updatedMessage });
+    res.json({ message: "All messages marked as read", updatedMessages });
   } catch (error) {
-    console.error("Error marking message as read:", error);
+    console.error("Error marking messages as read:", error);
     res.status(500).json({ message: error.message });
   }
 });
+
 router.post("/read-all", auth, async (req, res) => {
   try {
     const userEmail = req.user.email // Assuming auth middleware adds user to req
