@@ -1,30 +1,40 @@
 const mongoose = require('mongoose');
 
+const attachmentSchema = new mongoose.Schema({
+  url: String,
+  filename: String,
+});
+
 const messageSchema = new mongoose.Schema({
   senderEmail: {
     type: String,
-    required: true
+    required: true,
   },
   recipientEmail: {
     type: String,
-    required: true
+    required: true,
   },
   content: {
     type: String,
-    required: true
+    required: function () {
+      return this.attachments.length === 0; // Required only if no attachments
+    },
   },
   timestamp: {
     type: Date,
-    default: Date.now
+    default: Date.now,
   },
   read: {
     type: Boolean,
-    default: false
+    default: false,
   },
   role: {
     type: String,
-    required: true
-  }
+    required: true,
+  },
+  attachments: [attachmentSchema],
 });
 
-module.exports = mongoose.model('Message', messageSchema);
+const Message = mongoose.model('Message', messageSchema);
+
+module.exports = Message;
