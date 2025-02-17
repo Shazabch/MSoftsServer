@@ -81,16 +81,24 @@ router.post("/admin", auth, upload.array("attachments", 5), async (req, res) => 
 });
 
 // Update the general POST route
-router.post("/", auth, upload.array("attachments", 5), async (req, res) => {
+router.post("/", upload.array("attachments"), async (req, res) => {
   try {
-    const role = req.user.role; // 'client' or 'admin'
-    const senderEmail = role === 'admin' ? ADMIN_EMAIL : req.user.email;
+    const { senderEmail, recipientEmail, content, role } = req.body;
+
+    if (!recipientEmail) {
+      return res.status(400).json({ message: "Recipient is required" });
+    }
+
+    // Allow empty content if there are attachments
+    if (!content && (!req.files || req.files.length === 0)) {
+      return res.status(400).json({ message: "Content or attachments are required" });
+    }
 
     const messageData = {
-      senderEmail: senderEmail,
-      recipientEmail: req.body.recipientEmail,
-      content: req.body.content,
-      role: role,
+      senderEmail,
+      recipientEmail,
+      content: content || "", // Use empty string if content is not provided
+      role,
       timestamp: new Date(),
       read: false,
     };
@@ -102,22 +110,18 @@ router.post("/", auth, upload.array("attachments", 5), async (req, res) => {
       }));
     }
 
-    const message = new Message(messageData);
+    const newMessage = new Message(messageData);
+    await newMessage.save();
 
-    const newMessage = await message.save();
-
-    // Emit to recipient's room
-    io.getIO().to(req.body.recipientEmail).emit("newMessage", newMessage);
-    // If sender is client, also emit to admin room
-    if (role === 'client') {
-      io.getIO().to(ADMIN_EMAIL).emit("newMessage", newMessage);
-    }
+    // Emit message to specific client
+    io.getIO().to(recipientEmail).emit("newMessage", newMessage);
+    // Also emit to admin room
+    io.getIO().to(ADMIN_EMAIL).emit("newMessage", newMessage);
 
     res.status(201).json(newMessage);
   } catch (error) {
     console.error("Error sending message:", error);
-    console.log(error);
-    res.status(400).json({ message: error.message });
+    res.status(500).json({ message: "Internal Server Error" });
   }
 });
 
