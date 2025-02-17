@@ -192,7 +192,7 @@ router.post("/saveinquiry", async (req, res) => {
                       <table border="0" cellspacing="0" cellpadding="0">
                         <tr>
                           <td align="center" style="border-radius: 50px;" bgcolor="#8a4baf">
-                            <a href="https://yourwebsite.com/dashboard" target="_blank" style="font-size: 16px; font-family: 'Montserrat', Helvetica, Arial, sans-serif; color: #ffffff; text-decoration: none; padding: 15px 25px; border-radius: 50px; border: 1px solid #8a4baf; display: inline-block; font-weight: 600;">
+                            <a href="https://majesticsofts.com/" target="_blank" style="font-size: 16px; font-family: 'Montserrat', Helvetica, Arial, sans-serif; color: #ffffff; text-decoration: none; padding: 15px 25px; border-radius: 50px; border: 1px solid #8a4baf; display: inline-block; font-weight: 600;">
                              <svg 
   width="20" 
   height="20" 
@@ -210,7 +210,7 @@ router.post("/saveinquiry", async (req, res) => {
   />
 </svg>
 
-                              Return To Portfolio
+                              Return To homepage
                             </a>
                           </td>
                         </tr>

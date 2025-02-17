@@ -158,16 +158,20 @@ router.post("/read-all-admin", auth, async (req, res) => {
   try {
     const { clientEmail } = req.body;
 
-    // Update all messages for the client
+    // Update messages FROM client TO admin
     const updatedMessages = await Message.updateMany(
-      { senderEmail: clientEmail, read: false },
+      { 
+        senderEmail: clientEmail,
+        recipientEmail: ADMIN_EMAIL,
+        read: false 
+      },
       { $set: { read: true } }
     );
 
     // Emit event for frontend
     const io = req.app.get("socketio");
     if (io) {
-      io.emit("messagesRead", clientEmail);
+      io.emit("messagesRead", { clientEmail, updatedBy: "admin" });
     }
 
     res.json({ message: "All messages marked as read", updatedMessages });
@@ -179,15 +183,28 @@ router.post("/read-all-admin", auth, async (req, res) => {
 
 router.post("/read-all", auth, async (req, res) => {
   try {
-    const userEmail = req.user.email // Assuming auth middleware adds user to req
+    const userEmail = req.user.email; // Assuming auth middleware adds user to req
 
-    // Update all messages where the user is the recipient
-    await Message.updateMany({ recipientEmail: userEmail, read: false }, { $set: { read: true } })
+    // Update messages FROM admin TO client
+    const updatedMessages = await Message.updateMany(
+      { 
+        senderEmail: ADMIN_EMAIL,
+        recipientEmail: userEmail,
+        read: false 
+      },
+      { $set: { read: true } }
+    );
 
-    res.json({ message: "All messages marked as read" })
+    // Emit event for frontend with context
+    const io = req.app.get("socketio");
+    if (io) {
+      io.emit("messagesRead", { clientEmail: userEmail, updatedBy: "client" });
+    }
+
+    res.json({ message: "All messages marked as read" });
   } catch (error) {
-    console.error("Error marking messages as read:", error)
-    res.status(500).json({ message: error.message })
+    console.error("Error marking messages as read:", error);
+    res.status(500).json({ message: error.message });
   }
 });
 
