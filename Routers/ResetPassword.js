@@ -29,7 +29,7 @@ router.post("/reset-password", async (req, res) => {
     const resetToken = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '1h' });
 
     // Create the reset link
-    const resetLink = `http://localhost:5173/reset-password/${encodeURIComponent(resetToken)}`;
+    const resetLink = `https://majesticsofts.com//reset-password/${encodeURIComponent(resetToken)}`;
     console.log("Reset Link:", resetLink); // Debugging reset link
 
     // Create reusable transporter

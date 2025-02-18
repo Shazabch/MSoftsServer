@@ -79,7 +79,7 @@ router.get('/api/linkedin/callback', (req, res, next) => {
     session: true,
   })(req, res, next);
 }, (req, res) => {
-  res.redirect('http://localhost:5173/'); // Redirect to the frontend after successful login
+  res.redirect('https://majesticsofts.com//'); // Redirect to the frontend after successful login
 });
 
 // Endpoint for accessing user profile (example)

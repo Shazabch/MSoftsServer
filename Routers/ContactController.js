@@ -4,7 +4,7 @@ const router = express.Router();
 const ContactInquiries = require("../Models/ContactFormModel"); // Updated model name
 const Clients = require("../Models/Clients"); // Updated model name
 const bcrypt = require("bcryptjs");
-const crypto = require('crypto');
+const crypto = require("crypto");
 
 const dotenv = require("dotenv");
 dotenv.config();
@@ -18,31 +18,31 @@ const transporter = nodemailer.createTransport({
   },
 });
 router.patch("/update-status/:id", async (req, res) => {
-  const { id } = req.params
-  const { status } = req.body
+  const { id } = req.params;
+  const { status } = req.body;
 
   if (!["Active", "Non-active"].includes(status)) {
-    return res.status(400).json({ error: "Invalid status value" })
+    return res.status(400).json({ error: "Invalid status value" });
   }
 
   try {
-    const message = await ContactInquiries.findById(id)
+    const message = await ContactInquiries.findById(id);
     if (!message) {
-      return res.status(404).json({ error: "Message not found" })
+      return res.status(404).json({ error: "Message not found" });
     }
 
     // Update message status
-    message.status = status
-    await message.save()
+    message.status = status;
+    await message.save();
 
     if (status === "Active") {
       try {
         // Generate random password
-        const password = Math.random().toString(36).slice(-8)
-        const hashedPassword = await bcrypt.hash(password, 10)
+        const password = Math.random().toString(36).slice(-8);
+        const hashedPassword = await bcrypt.hash(password, 10);
 
         // Generate a unique client ID
-        const clientId = crypto.randomBytes(8).toString("hex")
+        const clientId = crypto.randomBytes(8).toString("hex");
 
         // Create or update client
         const client = await Clients.findOneAndUpdate(
@@ -54,8 +54,8 @@ router.patch("/update-status/:id", async (req, res) => {
             name: message.name,
             status: status,
           },
-          { upsert: true, new: true },
-        )
+          { upsert: true, new: true }
+        );
 
         // Send credentials email
         const mailOptions = {
@@ -102,7 +102,7 @@ router.patch("/update-status/:id", async (req, res) => {
                     <p style="font-size: 16px; line-height: 1.5; margin: 0;">
                       <strong>Email:</strong> ${message.email}<br>
                       <strong>Password:</strong> <span style="background-color: #e8f4fd; padding: 3px 8px; border-radius: 4px; font-family: monospace;">${password}</span><br>
-                      <strong>Login URL:</strong> <a href="http://localhost:5173/clientslogin" style="color: #6E42CD; text-decoration: none;">Click here to log in</a>
+                      <strong>Login URL:</strong> <a href="https://majesticsofts.com//clientslogin" style="color: #6E42CD; text-decoration: none;">Click here to log in</a>
                     </p>
                   </td>
                 </tr>
@@ -120,7 +120,7 @@ router.patch("/update-status/:id", async (req, res) => {
               <table cellpadding="0" cellspacing="0" border="0" width="100%">
                 <tr>
                   <td align="center">
-                    <a href="http://localhost:5173/clientslogin" style="display: inline-block; background-color: #6E42CD; color: #ffffff; font-size: 16px; font-weight: 600; text-decoration: none; padding: 12px 30px; border-radius: 5px;">Get Started</a>
+                    <a href="https://majesticsofts.com//clientslogin" style="display: inline-block; background-color: #6E42CD; color: #ffffff; font-size: 16px; font-weight: 600; text-decoration: none; padding: 12px 30px; border-radius: 5px;">Get Started</a>
                   </td>
                 </tr>
               </table>
@@ -143,8 +143,8 @@ router.patch("/update-status/:id", async (req, res) => {
 </body>
 </html>
           `,
-        }
-        const info = await transporter.sendMail(mailOptions)
+        };
+        const info = await transporter.sendMail(mailOptions);
 
         res.json({
           success: true,
@@ -155,89 +155,108 @@ router.patch("/update-status/:id", async (req, res) => {
             email: message.email,
             password: password,
           },
-        })
+        });
       } catch (emailError) {
-        console.error("Error sending email:", emailError)
+        console.error("Error sending email:", emailError);
         // Still update status but inform about email failure
         res.status(200).json({
           success: true,
           message: "Status updated but failed to send credentials email",
           data: message,
           emailError: emailError.message,
-        })
+        });
       }
     } else {
       // Update client status to Non-active
-      await Clients.findOneAndUpdate({ email: message.email }, { status: status })
+      await Clients.findOneAndUpdate(
+        { email: message.email },
+        { status: status }
+      );
 
       res.json({
         success: true,
         message: "Status updated successfully",
         data: message,
-      })
+      });
     }
   } catch (error) {
-    console.error("Error updating status:", error)
+    console.error("Error updating status:", error);
     res.status(500).json({
       success: false,
       error: "Internal Server Error",
       details: error.message,
-    })
+    });
   }
-})
+});
 // Get all messages with pagination
 router.get("/show", async (req, res) => {
-  const { page = 1, limit = 15, showArchived = "false", showOnlyActive = "false" } = req.query
-  const skip = (page - 1) * limit
+  const {
+    page = 1,
+    limit = 15,
+    showArchived = "false",
+    showOnlyActive = "false",
+  } = req.query;
+  const skip = (page - 1) * limit;
 
   try {
-    const query = {}
+    const query = {};
     if (showArchived === "true") {
-      query.archived = true
+      query.archived = true;
     } else if (showOnlyActive === "true") {
-      query.status = "Active"
-      query.archived = false
+      query.status = "Active";
+      query.archived = false;
     } else {
-      query.archived = { $ne: true }
+      query.archived = { $ne: true };
     }
 
-    const [totalMessages, activeMessages, archivedMessages, messages, totalFilteredMessages] = await Promise.all([
+    const [
+      totalMessages,
+      activeMessages,
+      archivedMessages,
+      messages,
+      totalFilteredMessages,
+    ] = await Promise.all([
       ContactInquiries.countDocuments(),
       ContactInquiries.countDocuments({ status: "Active", archived: false }),
       ContactInquiries.countDocuments({ archived: true }),
-      ContactInquiries.find(query).sort({ createdAt: -1 }).skip(skip).limit(Number(limit)),
+      ContactInquiries.find(query)
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(Number(limit)),
       ContactInquiries.countDocuments(query),
-    ])
+    ]);
 
     // Check for existing clients and update status if necessary
     const updatedMessages = await Promise.all(
       messages.map(async (message) => {
-        const existingClient = await Clients.findOne({ email: message.email })
+        const existingClient = await Clients.findOne({ email: message.email });
         if (existingClient) {
           // If the client exists, update the message status to match the client's status
           if (message.status !== existingClient.status) {
-            await ContactInquiries.findByIdAndUpdate(message._id, { status: existingClient.status })
-            message.status = existingClient.status
+            await ContactInquiries.findByIdAndUpdate(message._id, {
+              status: existingClient.status,
+            });
+            message.status = existingClient.status;
           }
         }
-        return message
-      }),
-    )
+        return message;
+      })
+    );
 
-    let updatedActiveMessages = activeMessages
+    let updatedActiveMessages = activeMessages;
 
     // Update active message count based on client status
     for (const message of updatedMessages) {
       if (message.status === "Active" && !message.archived) {
         if (updatedActiveMessages > activeMessages) {
-          updatedActiveMessages++
+          updatedActiveMessages++;
         } else if (updatedActiveMessages < activeMessages) {
-          updatedActiveMessages--
+          updatedActiveMessages--;
         }
       }
     }
 
-    const totalPages = Math.ceil(totalFilteredMessages / limit)
+    const totalPages = Math.ceil(totalFilteredMessages / limit);
 
     const response = {
       messages: updatedMessages,
@@ -246,13 +265,15 @@ router.get("/show", async (req, res) => {
       totalMessages,
       activeMessages: updatedActiveMessages,
       archivedMessages,
-    }
-    res.json(response)
+    };
+    res.json(response);
   } catch (error) {
-    console.error("Error fetching messages:", error)
-    res.status(500).json({ error: "Internal Server Error", details: error.message })
+    console.error("Error fetching messages:", error);
+    res
+      .status(500)
+      .json({ error: "Internal Server Error", details: error.message });
   }
-})
+});
 
 // Endpoint to handle contact form submissions
 router.post("/", async (req, res) => {
