@@ -1,154 +1,362 @@
 const express = require('express');
-const BlogPost = require('../Models/BlogsModel');
 const multer = require('multer');
-const { v2: cloudinary } = require('cloudinary');
+const cloudinary = require('cloudinary').v2;
 const { CloudinaryStorage } = require('multer-storage-cloudinary');
+const sanitizeHtml = require('sanitize-html');
+const BlogPost = require('../Models/BlogsModel');
+const BlogContent = require('../Models/BlogContent');
 
-// Cloudinary configuration
+const router = express.Router();
+// Cloudinary Configuration
 cloudinary.config({
-  cloud_name: 'dybotqozo',
-  api_key: '176444681733414',
-  api_secret: 'Iio2fclIU0VyxjD1iE_qW2tbxTg',
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET
 });
 
-// Configure multer storage for Cloudinary
+// Cloudinary Storage for Direct File Uploads
 const storage = new CloudinaryStorage({
   cloudinary,
   params: {
-    folder: 'blog_images', // Folder in Cloudinary
-    allowed_formats: ['jpg', 'jpeg', 'png'], // Supported formats
-  },
+    folder: "blog_images",
+    allowed_formats: ["jpg", "jpeg", "png", "webp"],
+    transformation: [{ width: 1200, quality: "auto" }]
+  }
 });
 
-const upload = multer({ storage });
+const upload = multer({
+  storage,
+  limits: { fileSize: 5 * 1024 * 1024 } // 5MB limit
+});
 
-const router = express.Router();
+// Sanitize HTML Content (Preserves Image Tags)
+const sanitizeContent = (content) => {
+  return sanitizeHtml(content, {
+    allowedTags: [
+      ...sanitizeHtml.defaults.allowedTags,
+      "img", "h1", "h2", "h3", "h4", "h5", "h6",
+      "blockquote", "p", "a", "ul", "ol", "nl", "li",
+      "b", "i", "strong", "em", "strike", "code", "hr",
+      "br", "div", "table", "thead", "caption", "tbody",
+      "tr", "th", "td", "pre", "iframe", "span"
+    ],
+    allowedAttributes: {
+      ...sanitizeHtml.defaults.allowedAttributes,
+      "*": ["class", "style", "id"],
+      "img": ["src", "alt", "title", "width", "height", "loading"],
+      "a": ["href", "target", "rel"]
+    },
+    allowedSchemes: ['data', 'http', 'https'], // Allow base64 data URLs
 
-// Route to save a new blog post
-router.post('/saveblog', upload.single('image'), async (req, res) => {
-  const { name, title, slug, metaTitle, content, metaDescription, designation, keywords } = req.body;
+    allowedStyles: {
+      "*": {
+        "color": [/^#(0x)?[0-9a-f]+$/i, /^rgb\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})\s*\)$/],
+        "text-align": [/^left$/, /^right$/, /^center$/, /^justify$/],
+        "font-size": [/^\d+(?:px|em|%)$/]
+      }
+    }
+  });
+};
 
-  if (!name || !title || !slug || !metaTitle || !content || !metaDescription || !designation || !keywords || !req.file) {
-    return res.status(400).json({ success: false, message: 'All fields are required' });
+// Upload Base64 Images to Cloudinary
+const uploadBase64Image = async (base64String) => {
+  try {
+    const result = await cloudinary.uploader.upload(base64String, {
+      folder: "blog_images",
+      resource_type: "image",  // Ensure correct resource type
+    });
+    return result.secure_url;
+  } catch (error) {
+    console.error("Cloudinary Upload Error:", error);
+    return null;  // Return null instead of throwing an error
+  }
+};
+
+
+// Process Content to Convert Base64 Images to Cloudinary URLs
+const processContentImages = async (content) => {
+  console.log("Original Content Before Processing:", content);
+
+  const regex = /<img[^>]+src="(data:image\/[^;]+;base64,[^"]+)"/g;
+  let updatedContent = content;
+  let match;
+  let foundImages = false;
+
+  while ((match = regex.exec(content)) !== null) {
+    foundImages = true;
+    const base64Image = match[1];
+
+    try {
+      console.log("Uploading base64 image to Cloudinary...");
+      const cloudinaryResult = await cloudinary.uploader.upload(base64Image, {
+        folder: "blog_images",
+      });
+
+      if (cloudinaryResult && cloudinaryResult.secure_url) {
+        console.log("Cloudinary Upload Success:", cloudinaryResult.secure_url);
+        updatedContent = updatedContent.replace(base64Image, cloudinaryResult.secure_url);
+      } else {
+        console.error("Cloudinary Upload Failed:", cloudinaryResult);
+      }
+    } catch (error) {
+      console.error("Error uploading base64 image:", error);
+    }
   }
 
+  if (!foundImages) {
+    console.warn("⚠ No base64 images detected in content!");
+  }
+
+  console.log("Updated Content After Processing:", updatedContent);
+  return updatedContent;
+};
+
+
+
+// Extract Image URLs from Processed HTML
+const extractImageUrls = (content) => {
+  const images = [];
+  const regex = /<img[^>]+src="([^">]+)"/g;
+  let match;
+
+  while ((match = regex.exec(content)) !== null) {
+    const url = match[1];
+    if (url.includes("cloudinary")) {  // Ensure only Cloudinary images are saved
+      images.push(url);
+    }
+  }
+
+  return images;
+};
+
+// Create a New Blog Post
+router.post("/saveblog", upload.single("image"), async (req, res) => {
   try {
-    const newPost = new BlogPost({
+    const { name, title, slug, metaTitle, content, metaDescription, designation, keywords } = req.body;
+
+    if (!name || !title || !slug || !metaTitle || !content || !metaDescription || !designation || !keywords || !req.file) {
+      return res.status(400).json({ success: false, message: "All fields are required" });
+    }
+
+    console.log("Sanitizing content...");
+    const sanitizedContent = sanitizeContent(content);
+    console.log("Processed Sanitized Content:", sanitizedContent);
+
+    console.log("Processing images in content...");
+    const finalContent = await processContentImages(sanitizedContent);
+
+    const images = extractImageUrls(finalContent);
+
+    console.log("Saving blog content...");
+const blogContent = await BlogContent.create({
+  content: finalContent,
+  images: images.map((url) => ({ url })) // ✅ Convert string URLs to object format
+});
+    console.log("Saving blog post...");
+    const post = await BlogPost.create({
       name,
       title,
       slug,
       metaTitle,
-      content,
+      contentId: blogContent._id,
       metaDescription,
       designation,
-      keywords: keywords.split(','), // Keywords stored as an array
-      image: req.file.path, // Image URL from Cloudinary
+      keywords: keywords.split(",").map((k) => k.trim()),
+      image: req.file.path,
     });
 
-    await newPost.save();
-    res.json({ success: true, message: 'Blog post added successfully', data: newPost });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ success: false, message: 'Error adding the post' });
+    console.log("Blog post saved successfully!");
+    res.status(201).json({ success: true, data: post });
+
+  } catch (error) {
+    console.error("Create post error:", error);
+    res.status(500).json({ success: false, message: "Error creating blog post" });
   }
 });
 
-// GET route to fetch all blog posts
-router.get('/allblogs', async (req, res) => {
-  try {
-    const page = Math.max(1, parseInt(req.query.page) || 1);
-    const limit = Math.max(1, parseInt(req.query.limit) || 6);
-    const skip = (page - 1) * limit;
-    
-    // Add sort by created_at in descending order
-    const blogPosts = await BlogPost.find()
-      .sort({ created_at: -1 }) // This line ensures latest posts appear first
-      .skip(skip)
-      .limit(limit);
 
-    const totalPosts = await BlogPost.countDocuments();
-    const totalPages = Math.ceil(totalPosts / limit);
+
+
+// Update blog post
+router.put('/updateblog/:slug', upload.single('image'), async (req, res) => {
+  try {
+    const { slug } = req.params;
+    const { name, title, newSlug, metaTitle, content, metaDescription, designation, keywords } = req.body;
+
+    const post = await BlogPost.findOne({ slug }).populate('contentId');
+    if (!post) {
+      return res.status(404).json({
+        success: false,
+        message: 'Blog post not found'
+      });
+    }
+
+    const sanitizedContent = sanitizeContent(content);
+    const images = extractImageUrls(sanitizedContent);
+
+    // Update blog content
+    await BlogContent.findByIdAndUpdate(post.contentId._id, {
+      content: sanitizedContent,
+      images,
+      updated_at: new Date()
+    });
+
+    const updateData = {
+      name,
+      title,
+      metaTitle,
+      metaDescription,
+      designation,
+      keywords: keywords.split(',').map(k => k.trim()),
+      updated_at: new Date()
+    };
+
+    if (newSlug && newSlug !== slug) {
+      const slugExists = await BlogPost.findOne({ slug: newSlug });
+      if (slugExists) {
+        return res.status(400).json({
+          success: false,
+          message: 'A blog post with this slug already exists'
+        });
+      }
+      updateData.slug = newSlug;
+    }
+
+    if (req.file) {
+      if (post.image) {
+        const publicId = post.image.split('/').pop().split('.')[0];
+        await cloudinary.uploader.destroy(publicId);
+      }
+      updateData.image = req.file.path;
+    }
+
+    const updatedPost = await BlogPost.findOneAndUpdate(
+      { slug },
+      updateData,
+      { new: true, runValidators: true }
+    ).populate('contentId');
 
     res.json({
       success: true,
-      data: blogPosts,
+      data: updatedPost
+    });
+  } catch (error) {
+    console.error('Update post error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error updating blog post'
+    });
+  }
+});
+
+// Get all blog posts
+router.get('/allblogs', async (req, res) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const search = req.query.search || '';
+    const skip = (page - 1) * limit;
+
+    const query = search ? {
+      $or: [
+        { title: { $regex: search, $options: 'i' } },
+        { 'contentId.content': { $regex: search, $options: 'i' } },
+        { keywords: { $in: [new RegExp(search, 'i')] } }
+      ]
+    } : {};
+
+    const [posts, total] = await Promise.all([
+      BlogPost.find(query)
+        .populate('contentId')
+        .sort({ created_at: -1 })
+        .skip(skip)
+        .limit(limit),
+      BlogPost.countDocuments(query)
+    ]);
+
+    res.json({
+      success: true,
+      data: posts,
       pagination: {
-        currentPage: page,
-        totalPages,
-        totalPosts,
-        limit,
+        total,
+        pages: Math.ceil(total / limit),
+        page,
+        limit
       }
     });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ success: false, message: 'Error fetching blog posts' });
-  }
-});
-
-
-
-// Route to update a blog post
-router.put('/updateblog/:slug', upload.single('image'), async (req, res) => {
-  const { slug } = req.params;
-  const { name, newSlug, title, content, metaTitle, metaDescription, designation, keywords } = req.body;
-
-  try {
-    const updateFields = {};
-    if (name) updateFields.name = name;
-    if (newSlug) updateFields.slug = newSlug;
-    if (title) updateFields.title = title;
-    if (content) updateFields.content = content;
-    if (metaTitle) updateFields.metaTitle = metaTitle;
-    if (metaDescription) updateFields.metaDescription = metaDescription;
-    if (designation) updateFields.designation = designation;
-    if (keywords) updateFields.keywords = keywords.split(',');
-    if (req.file) updateFields.image = req.file.path;
-
-    const updatedBlog = await BlogPost.findOneAndUpdate(
-      { slug }, // Find by current slug
-      { $set: updateFields }, // Update fields
-      { new: true, runValidators: true } // Return updated document
-    );
-
-    if (!updatedBlog) {
-      return res.status(404).json({ success: false, message: 'Blog not found' });
-    }
-
-    res.json({ success: true, message: 'Blog updated successfully', data: updatedBlog });
   } catch (error) {
-    console.error(error);
-    if (error.code === 11000) {
-      return res.status(400).json({ success: false, message: 'Slug must be unique' });
-    }
-    res.status(500).json({ success: false, message: 'Server error', error: error.message });
+    console.error('Get posts error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching blog posts'
+    });
   }
 });
 
-// Route to delete a blog post by ID
+// Delete blog post
 router.delete('/delete/:id', async (req, res) => {
-  const { id } = req.params;
-
   try {
-    const result = await BlogPost.findByIdAndDelete(id);
-
-    if (!result) {
-      return res.status(404).json({ success: false, message: 'Blog not found' });
+    const post = await BlogPost.findById(req.params.id).populate('contentId');
+    if (!post) {
+      return res.status(404).json({
+        success: false,
+        message: 'Blog post not found'
+      });
     }
 
-    res.json({ success: true, message: 'Blog deleted successfully' });
+    // Delete featured image from Cloudinary
+    if (post.image) {
+      const publicId = post.image.split('/').pop().split('.')[0];
+      await cloudinary.uploader.destroy(publicId);
+    }
+
+    // Delete content images from Cloudinary
+    if (post.contentId && post.contentId.images) {
+      for (const image of post.contentId.images) {
+        await cloudinary.uploader.destroy(image.publicId);
+      }
+    }
+
+    // Delete blog content
+    await BlogContent.findByIdAndDelete(post.contentId._id);
+
+    // Delete blog post
+    await post.deleteOne();
+
+    res.json({
+      success: true,
+      message: 'Blog post deleted successfully'
+    });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ success: false, message: 'Server error', error });
+    console.error('Delete post error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error deleting blog post'
+    });
   }
 });
 
-// Route to get the count of blog posts
-router.get('/count', async (req, res) => {
+// Get single blog post
+router.get('/:slug', async (req, res) => {
   try {
-    const blogPostCount = await BlogPost.countDocuments(); // Get count of all blog posts
-    res.json({ count: blogPostCount });
+    const post = await BlogPost.findOne({ slug: req.params.slug }).populate('contentId');
+    if (!post) {
+      return res.status(404).json({
+        success: false,
+        message: 'Blog post not found'
+      });
+    }
+
+    res.json({
+      success: true,
+      data: post
+    });
   } catch (error) {
-    res.status(500).json({ error: 'Error fetching blog post count' });
+    console.error('Get post error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching blog post'
+    });
   }
 });
 
