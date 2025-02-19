@@ -5,7 +5,6 @@ const { CloudinaryStorage } = require('multer-storage-cloudinary');
 const sanitizeHtml = require('sanitize-html');
 const BlogPost = require('../Models/BlogsModel');
 const BlogContent = require('../Models/BlogContent');
-
 const router = express.Router();
 // Cloudinary Configuration
 cloudinary.config({
@@ -13,7 +12,6 @@ cloudinary.config({
   api_key: process.env.CLOUDINARY_API_KEY,
   api_secret: process.env.CLOUDINARY_API_SECRET
 });
-
 // Cloudinary Storage for Direct File Uploads
 const storage = new CloudinaryStorage({
   cloudinary,
@@ -23,12 +21,10 @@ const storage = new CloudinaryStorage({
     transformation: [{ width: 1200, quality: "auto" }]
   }
 });
-
 const upload = multer({
   storage,
   limits: { fileSize: 5 * 1024 * 1024 } // 5MB limit
 });
-
 // Sanitize HTML Content (Preserves Image Tags)
 const sanitizeContent = (content) => {
   return sanitizeHtml(content, {
@@ -57,7 +53,6 @@ const sanitizeContent = (content) => {
     }
   });
 };
-
 // Upload Base64 Images to Cloudinary
 const uploadBase64Image = async (base64String) => {
   try {
@@ -71,8 +66,6 @@ const uploadBase64Image = async (base64String) => {
     return null;  // Return null instead of throwing an error
   }
 };
-
-
 // Process Content to Convert Base64 Images to Cloudinary URLs
 const processContentImages = async (content) => {
   console.log("Original Content Before Processing:", content);
@@ -110,9 +103,6 @@ const processContentImages = async (content) => {
   console.log("Updated Content After Processing:", updatedContent);
   return updatedContent;
 };
-
-
-
 // Extract Image URLs from Processed HTML
 const extractImageUrls = (content) => {
   const images = [];
@@ -128,7 +118,6 @@ const extractImageUrls = (content) => {
 
   return images;
 };
-
 // Create a New Blog Post
 router.post("/saveblog", upload.single("image"), async (req, res) => {
   try {
@@ -173,10 +162,6 @@ const blogContent = await BlogContent.create({
     res.status(500).json({ success: false, message: "Error creating blog post" });
   }
 });
-
-
-
-
 // Update blog post
 router.put('/updateblog/:slug', upload.single('image'), async (req, res) => {
   try {
@@ -248,31 +233,52 @@ router.put('/updateblog/:slug', upload.single('image'), async (req, res) => {
     });
   }
 });
-
 // Get all blog posts
 router.get('/allblogs', async (req, res) => {
+  console.log("all blog api hit")
   try {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
     const search = req.query.search || '';
     const skip = (page - 1) * limit;
 
-    const query = search ? {
-      $or: [
-        { title: { $regex: search, $options: 'i' } },
-        { 'contentId.content': { $regex: search, $options: 'i' } },
-        { keywords: { $in: [new RegExp(search, 'i')] } }
-      ]
-    } : {};
+    console.log(`Fetching blogs - Page: ${page}, Limit: ${limit}, Search: "${search}"`);
+
+    const query = search
+      ? {
+          $or: [
+            { title: { $regex: search, $options: 'i' } },
+            { 'contentId.content': { $regex: search, $options: 'i' } },
+            { keywords: { $in: [new RegExp(search, 'i')] } }
+          ]
+        }
+      : {};
+
+    console.log('MongoDB Query:', JSON.stringify(query, null, 2));
 
     const [posts, total] = await Promise.all([
       BlogPost.find(query)
-        .populate('contentId')
+        .populate({
+          path: 'contentId',
+          select: 'content', // Fetch only the 'content' field from the related collection
+        })
         .sort({ created_at: -1 })
         .skip(skip)
         .limit(limit),
       BlogPost.countDocuments(query)
     ]);
+
+    console.log(`Total posts found: ${total}`);
+
+    // Log only content field of contentId
+    posts.forEach(post => {
+      console.log(`Post ID: ${post._id}, Title: ${post.title}`);
+      if (post.contentId && post.contentId.content) {
+        console.log(`Content: ${post.contentId.content}`);
+      } else {
+        console.log(`Content: No content available`);
+      }
+    });
 
     res.json({
       success: true,
@@ -292,7 +298,6 @@ router.get('/allblogs', async (req, res) => {
     });
   }
 });
-
 // Delete blog post
 router.delete('/delete/:id', async (req, res) => {
   try {
