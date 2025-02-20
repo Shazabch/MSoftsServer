@@ -30,6 +30,7 @@ const LinkedInRouter = require("./Routers/LinkedInAuth")
 const ProfileRouter = require("./Routers/ClientProfile")
 const ClientchatRouter = require("./Routers/ClientChats")
 const BankRouter = require("./Routers/BankManagment")
+const InvoiceRouter = require("./Routers/Invoice")
 
 // Initialize Express app
 const app = express()
@@ -104,6 +105,7 @@ app.use("/api/linkedin", LinkedInRouter)
 app.use("/api/profile", ProfileRouter)
 app.use("/api/messages", ClientchatRouter)
 app.use("/api/bank",BankRouter)
+app.use("/api/invoice",InvoiceRouter)
 
 // Set the PORT
 const PORT = process.env.PORT || 5000
