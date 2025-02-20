@@ -7,6 +7,7 @@ const session = require("express-session")
 const MongoStore = require("connect-mongo")
 const http = require("http")
 const socketManager = require("./Socket.io/Socket")
+const BlogPost = require("./Models/BlogsModel")
 
 // Import routes
 const authRoutes = require("./Routers/Auth")
@@ -28,7 +29,7 @@ const ResetRouter = require("./Routers/ResetPassword")
 const LinkedInRouter = require("./Routers/LinkedInAuth")
 const ProfileRouter = require("./Routers/ClientProfile")
 const ClientchatRouter = require("./Routers/ClientChats")
-const BlogPost = require("./Models/BlogsModel")
+const BankRouter = require("./Routers/BankManagment")
 
 // Initialize Express app
 const app = express()
@@ -102,6 +103,7 @@ app.use("/api/reset", ResetRouter)
 app.use("/api/linkedin", LinkedInRouter)
 app.use("/api/profile", ProfileRouter)
 app.use("/api/messages", ClientchatRouter)
+app.use("/api/bank",BankRouter)
 
 // Set the PORT
 const PORT = process.env.PORT || 5000

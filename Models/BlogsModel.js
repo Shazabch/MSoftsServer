@@ -40,10 +40,8 @@ const blogPostSchema = new mongoose.Schema({
     required: [true, 'Designation is required'],
     trim: true
   },
-  keywords: [{
-    type: String,
-    trim: true
-  }],
+  keywords: { type: [String], required: true },
+
   image: {
     type: String,
     required: [true, 'Featured image is required']

@@ -177,7 +177,19 @@ const blogContent = await BlogContent.create({
 router.put('/updateblog/:slug', upload.single('image'), async (req, res) => {
   try {
     const { slug } = req.params;
-    const { name, title, newSlug, metaTitle, content, metaDescription, designation, keywords } = req.body;
+    let { name, title, newSlug, metaTitle, content, metaDescription, designation, keywords } = req.body;
+
+    // ✅ Fix keywords issue - Ensure it's always an array
+    try {
+      if (typeof keywords === "string") {
+        keywords = JSON.parse(keywords);
+      }
+      if (!Array.isArray(keywords)) {
+        keywords = keywords.split(',').map(k => k.trim());
+      }
+    } catch (error) {
+      keywords = keywords.split(',').map(k => k.trim());
+    }
 
     const post = await BlogPost.findOne({ slug }).populate('contentId');
     if (!post) {
@@ -188,12 +200,12 @@ router.put('/updateblog/:slug', upload.single('image'), async (req, res) => {
     }
 
     const sanitizedContent = sanitizeContent(content);
-    const images = extractImageUrls(sanitizedContent);
+    const images = extractImageUrls(sanitizedContent).map(url => ({ url })); // ✅ Convert URLs to objects
 
     // Update blog content
     await BlogContent.findByIdAndUpdate(post.contentId._id, {
       content: sanitizedContent,
-      images,
+      images, // ✅ Now correctly formatted
       updated_at: new Date()
     });
 
@@ -203,7 +215,7 @@ router.put('/updateblog/:slug', upload.single('image'), async (req, res) => {
       metaTitle,
       metaDescription,
       designation,
-      keywords: keywords.split(',').map(k => k.trim()),
+      keywords, // ✅ Now properly formatted as an array
       updated_at: new Date()
     };
 
@@ -237,13 +249,14 @@ router.put('/updateblog/:slug', upload.single('image'), async (req, res) => {
       data: updatedPost
     });
   } catch (error) {
-    console.error('Update post error:', error);
     res.status(500).json({
       success: false,
       message: 'Error updating blog post'
     });
+    console.error('Update post error:', error);
   }
 });
+
 // Get all blog posts
 router.get('/allblogs', async (req, res) => {
   console.log("all blog api hit")
