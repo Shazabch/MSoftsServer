@@ -45,6 +45,10 @@ const InvoiceSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
+  items: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "InvoiceItem", // Reference to InvoiceItem collection
+  }],
   createdAt: {
     type: Date,
     default: Date.now, // ✅ Automatically sets current date on creation

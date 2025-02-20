@@ -31,22 +31,72 @@ router.get("/next-id", async (req, res) => {
 
 // Create a new invoice
 router.post("/", async (req, res) => {
-  try {
-    const invoice = new Invoice(req.body)
-    await invoice.save()
+ try {
 
-    const invoiceItems = req.body.items.map((item) => ({
-      ...item,
-      invoiceId: invoice.invoiceId,
-    }))
-    await InvoiceItem.insertMany(invoiceItems)
+   const {
+     invoiceId,
+     clientId,
+     bankId,
+     projectId,
+     salesTax,
+     discount,
+     subtotal,
+     total,
+     dueDate,
+     status,
+     items
+   } = req.body;
 
-    res.status(201).json(invoice)
-  } catch (error) {
-    res.status(400).json({ message: error.message })
-    console.log(error)
+   // ✅ Step 1: Validate Required Fields
+   if (!invoiceId || !clientId || !bankId || !projectId || subtotal === undefined || total === undefined || !dueDate || !status) {
+    return res.status(400).json({ message: "Please provide all required fields." });
   }
-})
+  
+
+   // ✅ Step 2: Log Items to be Inserted
+   if (!items || items.length === 0) {
+     return res.status(400).json({ message: "At least one invoice item is required." });
+   }
+
+   console.log("📦 Items to insert:", items);
+
+   // ✅ Step 3: Insert Invoice Items
+   const createdItems = await InvoiceItem.insertMany(
+     items.map(item => ({
+       ...item,
+       invoiceId, // Linking item to the invoice
+     }))
+   );
+
+
+   const itemIds = createdItems.map(item => item._id); // Extract ObjectIds
+
+   // ✅ Step 4: Create Invoice
+   const invoice = new Invoice({
+     invoiceId,
+     clientId,
+     bankId,
+     projectId,
+     salesTax,
+     discount,
+     subtotal,
+     total,
+     dueDate,
+     status,
+     items: itemIds, // Storing the ObjectIds of created items
+   });
+
+   const savedInvoice = await invoice.save();
+
+
+   res.status(201).json(savedInvoice);
+
+ } catch (error) {
+   res.status(500).json({ message: "Server error: " + error.message });
+ }
+});
+
+
 
 // Get all invoices
 router.get("/", async (req, res) => {
