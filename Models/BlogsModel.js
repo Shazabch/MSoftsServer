@@ -28,6 +28,8 @@ const blogPostSchema = new mongoose.Schema({
     required: [true, 'Meta title is required'],
     trim: true
   },
+  feature: { type: Boolean, default: false }, // Feature field
+
   metaDescription: {
     type: String,
     required: [true, 'Meta description is required'],

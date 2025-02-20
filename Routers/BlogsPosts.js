@@ -1,9 +1,10 @@
 const express = require('express');
-const multer = require('multer');
+const multer = require('multer'); 
 const cloudinary = require('cloudinary').v2;
 const { CloudinaryStorage } = require('multer-storage-cloudinary');
 const sanitizeHtml = require('sanitize-html');
 const BlogPost = require('../Models/BlogsModel');
+const Blog = require('../Models/BlogsModel');
 const BlogContent = require('../Models/BlogContent');
 const router = express.Router();
 // Cloudinary Configuration
@@ -52,19 +53,6 @@ const sanitizeContent = (content) => {
       }
     }
   });
-};
-// Upload Base64 Images to Cloudinary
-const uploadBase64Image = async (base64String) => {
-  try {
-    const result = await cloudinary.uploader.upload(base64String, {
-      folder: "blog_images",
-      resource_type: "image",  // Ensure correct resource type
-    });
-    return result.secure_url;
-  } catch (error) {
-    console.error("Cloudinary Upload Error:", error);
-    return null;  // Return null instead of throwing an error
-  }
 };
 // Process Content to Convert Base64 Images to Cloudinary URLs
 const processContentImages = async (content) => {
@@ -118,6 +106,19 @@ const extractImageUrls = (content) => {
 
   return images;
 };
+router.put("/toggle-feature/:id", async (req, res) => {
+  try {
+    const blog = await Blog.findById(req.params.id);
+    if (!blog) return res.status(404).json({ success: false, message: "Blog not found" });
+
+    blog.feature = !blog.feature; // Toggle feature value
+    await blog.save();
+
+    res.json({ success: true, feature: blog.feature });
+  } catch (error) {
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+})
 // Create a New Blog Post
 router.post("/saveblog", upload.single("image"), async (req, res) => {
   try {
