@@ -11,7 +11,19 @@ router.get("/show", async (req, res) => {
     res.status(500).json({ message: "Failed to retrieve clients." });
   }
 });
+router.get("/:id", async (req, res) => {
+  try {
+    const client = await Client.findById(req.params.id);
 
+    if (!client) {
+      return res.status(404).json({ message: "Client not found" });
+    }
+
+    res.json(client);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
 // Create a new client
 router.post("/create", async (req, res) => {
   const {

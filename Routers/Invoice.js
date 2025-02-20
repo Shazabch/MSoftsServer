@@ -44,6 +44,7 @@ router.post("/", async (req, res) => {
     res.status(201).json(invoice)
   } catch (error) {
     res.status(400).json({ message: error.message })
+    console.log(error)
   }
 })
 

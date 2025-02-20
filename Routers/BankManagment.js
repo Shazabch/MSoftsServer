@@ -13,7 +13,19 @@ router.post("/", async (req, res) => {
     res.status(500).json({ message: "Error adding bank" });
   }
 });
+router.get("/:id", async (req, res) => {
+  try {
+    const bank = await Bank.findById(req.params.id);
 
+    if (!bank) {
+      return res.status(404).json({ message: "Bank not found" });
+    }
+
+    res.json(bank);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
 // Get all banks
 router.get("/", async (req, res) => {
   try {

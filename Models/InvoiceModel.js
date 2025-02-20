@@ -1,4 +1,4 @@
-const mongoose = require("mongoose")
+const mongoose = require("mongoose");
 
 const InvoiceSchema = new mongoose.Schema({
   invoiceId: {
@@ -45,7 +45,10 @@ const InvoiceSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
-})
+  createdAt: {
+    type: Date,
+    default: Date.now, // ✅ Automatically sets current date on creation
+  },
+});
 
-module.exports = mongoose.model("Invoice", InvoiceSchema)
-
+module.exports = mongoose.model("Invoice", InvoiceSchema);
