@@ -57,9 +57,6 @@ router.post("/", async (req, res) => {
    if (!items || items.length === 0) {
      return res.status(400).json({ message: "At least one invoice item is required." });
    }
-
-   console.log("📦 Items to insert:", items);
-
    // ✅ Step 3: Insert Invoice Items
    const createdItems = await InvoiceItem.insertMany(
      items.map(item => ({
