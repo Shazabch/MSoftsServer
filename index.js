@@ -28,6 +28,7 @@ const ResetRouter = require("./Routers/ResetPassword")
 const LinkedInRouter = require("./Routers/LinkedInAuth")
 const ProfileRouter = require("./Routers/ClientProfile")
 const ClientchatRouter = require("./Routers/ClientChats")
+const BlogPost = require("./Models/BlogsModel")
 
 // Initialize Express app
 const app = express()
@@ -58,7 +59,15 @@ app.use(
     },
   }),
 )
-
+app.get('/count', async (req, res) => {
+  try {
+    const blogPostCount = await BlogPost.countDocuments(); // Get count of all blog posts
+    res.json({ count: blogPostCount });
+  } catch (error) {
+    res.status(500).json({ error: 'Error fetching blog post count' });
+    console.log(error)
+  }
+});
 // Connect to MongoDB
 mongoose
   .connect(process.env.MONGO_URI, {})

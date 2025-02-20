@@ -102,7 +102,7 @@ router.patch("/update-status/:id", async (req, res) => {
                     <p style="font-size: 16px; line-height: 1.5; margin: 0;">
                       <strong>Email:</strong> ${message.email}<br>
                       <strong>Password:</strong> <span style="background-color: #e8f4fd; padding: 3px 8px; border-radius: 4px; font-family: monospace;">${password}</span><br>
-                      <strong>Login URL:</strong> <a href="https://majesticsofts.com//clientslogin" style="color: #6E42CD; text-decoration: none;">Click here to log in</a>
+                      <strong>Login URL:</strong> <a href="https://majesticsofts.com/clientslogin" style="color: #6E42CD; text-decoration: none;">Click here to log in</a>
                     </p>
                   </td>
                 </tr>
@@ -120,7 +120,7 @@ router.patch("/update-status/:id", async (req, res) => {
               <table cellpadding="0" cellspacing="0" border="0" width="100%">
                 <tr>
                   <td align="center">
-                    <a href="https://majesticsofts.com//clientslogin" style="display: inline-block; background-color: #6E42CD; color: #ffffff; font-size: 16px; font-weight: 600; text-decoration: none; padding: 12px 30px; border-radius: 5px;">Get Started</a>
+                    <a href="https://majesticsofts.com/clientslogin" style="display: inline-block; background-color: #6E42CD; color: #ffffff; font-size: 16px; font-weight: 600; text-decoration: none; padding: 12px 30px; border-radius: 5px;">Get Started</a>
                   </td>
                 </tr>
               </table>
