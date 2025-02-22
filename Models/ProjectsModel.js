@@ -18,7 +18,7 @@ const projectSchema = new mongoose.Schema({
   results: { type: String },
   testimonial: { type: String },
   regions: { type: [String] },
-  liveUrl: { type: String }
+  liveUrl: { type: String, required:true}
 }, { timestamps: true });
 
 module.exports = mongoose.model('Project', projectSchema);

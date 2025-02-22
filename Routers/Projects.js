@@ -41,6 +41,7 @@ router.post("/add", upload.fields([
   { name: 'clientLogo', maxCount: 1 },
   { name: 'images', maxCount: 10 }
 ]), async (req, res) => {
+
   try {
     const {
       title,
@@ -55,9 +56,9 @@ router.post("/add", upload.fields([
       testimonial,
       regions,
       category,
-      liveUrl
+      liveurl
     } = req.body;
-
+console.log(req.body)
     // Generate slug from title
     const slug = title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
 
@@ -83,7 +84,7 @@ router.post("/add", upload.fields([
       results,
       testimonial,
       regions: regions ? JSON.parse(regions) : [], // Parse if exists
-      liveUrl
+      liveUrl: liveurl // assign liveurl to liveUrl
     });
 
     await newProject.save();
