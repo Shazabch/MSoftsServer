@@ -2,45 +2,88 @@ const express = require("express");
 const { v2: cloudinary } = require("cloudinary");
 const { CloudinaryStorage } = require("multer-storage-cloudinary");
 const multer = require("multer");
-const Project = require("../Models/ProjectsModel"); // Import Project Model
+const Project = require("../Models/ProjectsModel");
 
 const router = express.Router();
 
 // Configure Cloudinary
 cloudinary.config({
-  cloud_name: "dybotqozo", // Replace with your Cloudinary cloud name
-  api_key: "176444681733414", // Replace with your Cloudinary API key
-  api_secret: "Iio2fclIU0VyxjD1iE_qW2tbxTg", // Replace with your Cloudinary API secret
+  cloud_name: "dybotqozo",
+  api_key: "176444681733414",
+  api_secret: "Iio2fclIU0VyxjD1iE_qW2tbxTg",
 });
 
-// Cloudinary Storage Configuration for Project Images
+// Configure Cloudinary storage for multiple file uploads
 const storage = new CloudinaryStorage({
   cloudinary,
   params: {
-    folder: "project_images", // Folder for project images in Cloudinary
-    allowed_formats: ["jpg", "jpeg", "png"], // Allowed image formats
+    folder: "project_images",
+    allowed_formats: ["jpg", "jpeg", "png"],
   },
 });
 
-const upload = multer({ storage }); // Multer configuration with Cloudinary storage
+const upload = multer({ storage });
 
-// **Routes for Project Management**
-
-// 1. Add a New Project
-router.post("/add", upload.single("image"), async (req, res) => {
+// Helper function to handle file uploads
+const uploadToCloudinary = async (file) => {
   try {
-    const { title, description, technologies, liveUrl, category } = req.body;
+    const result = await cloudinary.uploader.upload(file.path);
+    return result.secure_url;
+  } catch (error) {
+    console.error("Cloudinary upload error:", error);
+    throw error;
+  }
+};
 
-    // Store image URL from Cloudinary
-    const image = req.file ? req.file.path : "";
+// Add a New Project
+router.post("/add", upload.fields([
+  { name: 'backgroundImage', maxCount: 1 },
+  { name: 'clientLogo', maxCount: 1 },
+  { name: 'images', maxCount: 10 }
+]), async (req, res) => {
+  try {
+    const {
+      title,
+      subtitle,
+      description,
+      client,
+      technologies,
+      features,
+      challenge,
+      solution,
+      results,
+      testimonial,
+      regions,
+      category,
+      liveUrl
+    } = req.body;
+
+    // Generate slug from title
+    const slug = title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
+
+    // Handle file uploads
+    const backgroundImage = req.files?.backgroundImage?.[0] ? await uploadToCloudinary(req.files.backgroundImage[0]) : null;
+    const clientLogo = req.files?.clientLogo?.[0] ? await uploadToCloudinary(req.files.clientLogo[0]) : null;
+    const images = req.files?.images ? await Promise.all(req.files.images.map(file => uploadToCloudinary(file))) : [];
 
     const newProject = new Project({
       title,
+      subtitle,
+      slug,
+      category: JSON.parse(category), // Parse the JSON string back to array
+      backgroundImage,
       description,
-      image, // Cloudinary image URL
-      technologies: technologies.split(","), // Split technologies into an array
-      liveUrl,
-      category,
+      client,
+      clientLogo,
+      technologies: JSON.parse(technologies), // Parse the JSON string back to array
+      features: features ? JSON.parse(features) : [], // Parse if exists
+      images,
+      challenge,
+      solution,
+      results,
+      testimonial,
+      regions: regions ? JSON.parse(regions) : [], // Parse if exists
+      liveUrl
     });
 
     await newProject.save();
@@ -51,21 +94,17 @@ router.post("/add", upload.single("image"), async (req, res) => {
   }
 });
 
-// 2. Fetch All Projects or Filter by Category
+// Fetch All Projects
 router.get("/show", async (req, res) => {
   const { category } = req.query;
 
   try {
     let projects;
-
-    if (category) {
-      // Filter projects by category
-      projects = await Project.find({ category });
+    if (category && category !== 'all') {
+      projects = await Project.find({ category: category });
     } else {
-      // Fetch all projects
       projects = await Project.find();
     }
-
     res.status(200).json(projects);
   } catch (error) {
     console.error("Error fetching projects:", error);
@@ -73,28 +112,64 @@ router.get("/show", async (req, res) => {
   }
 });
 
-// 3. Update an Existing Project
-router.put("/update/:id", upload.single("image"), async (req, res) => {
+// Update an Existing Project
+router.put("/update/:id", upload.fields([
+  { name: 'backgroundImage', maxCount: 1 },
+  { name: 'clientLogo', maxCount: 1 },
+  { name: 'images', maxCount: 10 }
+]), async (req, res) => {
   const { id } = req.params;
-  const { title, description, technologies, liveUrl, category } = req.body;
-
   try {
+    const {
+      title,
+      subtitle,
+      description,
+      client,
+      technologies,
+      features,
+      challenge,
+      solution,
+      results,
+      testimonial,
+      regions,
+      category,
+      liveUrl
+    } = req.body;
+
+    // Generate new slug if title changed
+    const slug = title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
+
     const updatedData = {
       title,
+      subtitle,
+      slug,
+      category: JSON.parse(category),
       description,
-      technologies: technologies.split(","),
-      liveUrl,
-      category,
+      client,
+      technologies: JSON.parse(technologies),
+      features: features ? JSON.parse(features) : [],
+      challenge,
+      solution,
+      results,
+      testimonial,
+      regions: regions ? JSON.parse(regions) : [],
+      liveUrl
     };
 
-    // If a new image is uploaded, update the image URL
-    if (req.file) {
-      updatedData.image = req.file.path;
+    // Handle file uploads if new files are provided
+    if (req.files?.backgroundImage?.[0]) {
+      updatedData.backgroundImage = await uploadToCloudinary(req.files.backgroundImage[0]);
+    }
+    if (req.files?.clientLogo?.[0]) {
+      updatedData.clientLogo = await uploadToCloudinary(req.files.clientLogo[0]);
+    }
+    if (req.files?.images) {
+      updatedData.images = await Promise.all(req.files.images.map(file => uploadToCloudinary(file)));
     }
 
     const updatedProject = await Project.findByIdAndUpdate(id, updatedData, {
-      new: true, // Return the updated document
-      runValidators: true, // Run validations
+      new: true,
+      runValidators: true,
     });
 
     if (!updatedProject) {
@@ -108,25 +183,25 @@ router.put("/update/:id", upload.single("image"), async (req, res) => {
   }
 });
 
-// 4. Get Total Project Count
-router.get("/count", async (req, res) => {
-  try {
-    const projectCount = await Project.countDocuments(); // Get count of all projects
-    res.json({ count: projectCount });
-  } catch (error) {
-    res.status(500).json({ error: "Error fetching project count" });
-  }
-});
-
-// 5. Delete a Project
+// Delete a Project
 router.delete("/delete/:id", async (req, res) => {
   const { id } = req.params;
 
   try {
     const deletedProject = await Project.findByIdAndDelete(id);
-
     if (!deletedProject) {
       return res.status(404).json({ message: "Project not found" });
+    }
+
+    // Delete associated images from Cloudinary
+    if (deletedProject.backgroundImage) {
+      await cloudinary.uploader.destroy(deletedProject.backgroundImage);
+    }
+    if (deletedProject.clientLogo) {
+      await cloudinary.uploader.destroy(deletedProject.clientLogo);
+    }
+    if (deletedProject.images?.length) {
+      await Promise.all(deletedProject.images.map(image => cloudinary.uploader.destroy(image)));
     }
 
     res.status(200).json({ message: "Project deleted successfully" });
@@ -136,5 +211,4 @@ router.delete("/delete/:id", async (req, res) => {
   }
 });
 
-// Export Router
 module.exports = router;
