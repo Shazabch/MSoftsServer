@@ -39,9 +39,9 @@ const uploadToCloudinary = async (file) => {
 router.post("/add", upload.fields([
   { name: 'backgroundImage', maxCount: 1 },
   { name: 'clientLogo', maxCount: 1 },
+  { name: 'portfolioImage', maxCount: 1 }, // Added portfolio image
   { name: 'images', maxCount: 10 }
 ]), async (req, res) => {
-
   try {
     const {
       title,
@@ -58,33 +58,35 @@ router.post("/add", upload.fields([
       category,
       liveurl
     } = req.body;
-console.log(req.body)
+
     // Generate slug from title
     const slug = title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
 
     // Handle file uploads
     const backgroundImage = req.files?.backgroundImage?.[0] ? await uploadToCloudinary(req.files.backgroundImage[0]) : null;
     const clientLogo = req.files?.clientLogo?.[0] ? await uploadToCloudinary(req.files.clientLogo[0]) : null;
+    const portfolioImage = req.files?.portfolioImage?.[0] ? await uploadToCloudinary(req.files.portfolioImage[0]) : null;
     const images = req.files?.images ? await Promise.all(req.files.images.map(file => uploadToCloudinary(file))) : [];
 
     const newProject = new Project({
       title,
       subtitle,
       slug,
-      category: JSON.parse(category), // Parse the JSON string back to array
+      category: JSON.parse(category),
       backgroundImage,
+      portfolioImage, // Added portfolio image
       description,
       client,
       clientLogo,
-      technologies: JSON.parse(technologies), // Parse the JSON string back to array
-      features: features ? JSON.parse(features) : [], // Parse if exists
+      technologies: JSON.parse(technologies),
+      features: features ? JSON.parse(features) : [],
       images,
       challenge,
       solution,
       results,
       testimonial,
-      regions: regions ? JSON.parse(regions) : [], // Parse if exists
-      liveUrl: liveurl // assign liveurl to liveUrl
+      regions: regions ? JSON.parse(regions) : [],
+      liveUrl: liveurl
     });
 
     await newProject.save();
@@ -117,6 +119,7 @@ router.get("/show", async (req, res) => {
 router.put("/update/:id", upload.fields([
   { name: 'backgroundImage', maxCount: 1 },
   { name: 'clientLogo', maxCount: 1 },
+  { name: 'portfolioImage', maxCount: 1 }, // Added portfolio image
   { name: 'images', maxCount: 10 }
 ]), async (req, res) => {
   const { id } = req.params;
@@ -164,6 +167,9 @@ router.put("/update/:id", upload.fields([
     if (req.files?.clientLogo?.[0]) {
       updatedData.clientLogo = await uploadToCloudinary(req.files.clientLogo[0]);
     }
+    if (req.files?.portfolioImage?.[0]) {
+      updatedData.portfolioImage = await uploadToCloudinary(req.files.portfolioImage[0]);
+    }
     if (req.files?.images) {
       updatedData.images = await Promise.all(req.files.images.map(file => uploadToCloudinary(file)));
     }
@@ -200,6 +206,9 @@ router.delete("/delete/:id", async (req, res) => {
     }
     if (deletedProject.clientLogo) {
       await cloudinary.uploader.destroy(deletedProject.clientLogo);
+    }
+    if (deletedProject.portfolioImage) {
+      await cloudinary.uploader.destroy(deletedProject.portfolioImage);
     }
     if (deletedProject.images?.length) {
       await Promise.all(deletedProject.images.map(image => cloudinary.uploader.destroy(image)));
