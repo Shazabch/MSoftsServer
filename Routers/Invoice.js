@@ -2,7 +2,22 @@ const express = require("express")
 const router = express.Router()
 const Invoice = require('../Models/InvoiceModel');
 const InvoiceItem = require("../Models/InvoiceItems")
+// GET /api/invoice-items?invoiceId=INVMAJ-20250224-0001
+router.get("/items", async (req, res) => {
+  const { invoiceId } = req.query;
 
+  try {
+    if (!invoiceId) {
+      return res.status(400).json({ message: "Invoice ID is required" });
+    }
+
+    const items = await InvoiceItem.find({ invoiceId });
+    res.json(items);
+  } catch (err) {
+    console.error("Error fetching invoice items:", err);
+    res.status(500).json({ message: "Server Error" });
+  }
+});
 // Get next invoice ID
 router.get("/next-id", async (req, res) => {
   try {
