@@ -4,6 +4,17 @@ const Project = require("../Models/ClientProjects");
 const User = require("../Models/Clients");
 const auth = require("../Middlewere/ClientAuth");
 
+// Get all projects for a client
+router.get("/clientshow",auth,  async (req, res) => {
+  try {
+    const projects = await Project.find({ clientId: req.user.id });
+    res.status(200).json(projects);
+  } catch (err) {
+    console.error("Error fetching projects:", err);
+    res.status(500).json({ error: "Failed to fetch projects", details: err.message });
+  }
+});
+
 // Get all projects
 router.get("/show", async (req, res) => {
   const { status } = req.query;
@@ -147,19 +158,7 @@ router.delete("/delete/:id", async (req, res) => {
     res.status(500).json({ error: "Failed to delete project" });
   }
 });
-router.get("/clientshow", auth, async (req, res) => {
-  const { status } = req.query
-  try {
-    const query = { clientId: req.user.id }
-    if (status) {
-      query.status = status
-    }
-    const projects = await Project.find(query)
-    res.status(200).json(projects)
-  } catch (err) {
-    console.error("Error fetching projects:", err)
-    res.status(500).json({ error: "Failed to fetch projects", details: err.message })
-  }
-})
+
+
 
 module.exports = router;
