@@ -6,7 +6,7 @@ const projectSchema = new mongoose.Schema({
   slug: { type: String, required: true },
   category: { type: [String], required: true },
   backgroundImage: { type: String },
-  portfolioImage: { type: String }, // Added portfolio image field
+  portfolioImage: { type: String },
   thumbnail: { type: String },
   description: { type: String, required: true },
   client: { type: String },
@@ -19,7 +19,8 @@ const projectSchema = new mongoose.Schema({
   results: { type: String },
   testimonial: { type: String },
   regions: { type: [String] },
-  liveUrl: { type: String, required: true }
+  liveUrl: { type: String, required: true },
+  status: { type: String, enum: ['listed', 'unlisted'], default: 'listed' }
 }, { timestamps: true });
 
 module.exports = mongoose.model('Project', projectSchema);

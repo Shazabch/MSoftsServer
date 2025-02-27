@@ -63,7 +63,8 @@ router.post("/add", upload.fields([
       testimonial,
       regions,
       category,
-      liveurl
+      liveurl,
+      status = 'listed' // Default to listed if not provided
     } = req.body;
 
     // Generate slug from title
@@ -93,7 +94,8 @@ router.post("/add", upload.fields([
       results,
       testimonial,
       regions: regions ? JSON.parse(regions) : [],
-      liveUrl: liveurl
+      liveUrl: liveurl,
+      status
     });
 
     await newProject.save();
@@ -106,19 +108,53 @@ router.post("/add", upload.fields([
 
 // Fetch All Projects
 router.get("/show", async (req, res) => {
-  const { category } = req.query;
+  const { category, status } = req.query;
 
   try {
-    let projects;
+    let query = {};
+    
+    // Add category filter if specified
     if (category && category !== 'all') {
-      projects = await Project.find({ category: category });
-    } else {
-      projects = await Project.find();
+      query.category = category;
     }
+    
+    // Add status filter if specified
+    if (status) {
+      query.status = status;
+    }
+    
+    const projects = await Project.find(query);
     res.status(200).json(projects);
   } catch (error) {
     console.error("Error fetching projects:", error);
     res.status(500).json({ message: "Failed to fetch projects", error: error.message });
+  }
+});
+
+// Update project status
+router.patch("/update-status/:id", async (req, res) => {
+  const { id } = req.params;
+  const { status } = req.body;
+  
+  if (!status || !['listed', 'unlisted'].includes(status)) {
+    return res.status(400).json({ message: "Invalid status. Must be 'listed' or 'unlisted'" });
+  }
+  
+  try {
+    const updatedProject = await Project.findByIdAndUpdate(
+      id, 
+      { status }, 
+      { new: true, runValidators: true }
+    );
+    
+    if (!updatedProject) {
+      return res.status(404).json({ message: "Project not found" });
+    }
+    
+    res.status(200).json({ message: "Project status updated successfully", project: updatedProject });
+  } catch (error) {
+    console.error("Error updating project status:", error);
+    res.status(500).json({ message: "Failed to update project status", error: error.message });
   }
 });
 
@@ -144,7 +180,8 @@ router.put("/update/:id", upload.fields([
       testimonial,
       regions,
       category,
-      liveUrl
+      liveUrl,
+      status
     } = req.body;
 
     // Generate new slug if title changed
@@ -164,7 +201,8 @@ router.put("/update/:id", upload.fields([
       results,
       testimonial,
       regions: regions ? JSON.parse(regions) : [],
-      liveUrl
+      liveUrl,
+      status
     };
 
     // Handle file uploads if new files are provided
