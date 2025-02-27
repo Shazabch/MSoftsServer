@@ -10,7 +10,7 @@ const router = express.Router();
 // GET route for fetching the count of sub-admins
 router.get('/count', async (req, res) => {
   try {
-    const subAdminCount = await SubAdmin.countDocuments(); // Count the number of sub-admins
+    const subAdminCount = await SubAdmin.countDocuments();
     res.status(200).json({ count: subAdminCount });
   } catch (err) {
     res.status(500).json({ message: 'Failed to fetch sub-admin count', error: err.message });

@@ -7,6 +7,15 @@ const BlogPost = require('../Models/BlogsModel');
 const Blog = require('../Models/BlogsModel');
 const BlogContent = require('../Models/BlogContent');
 const router = express.Router();
+router.get('/count', async (req, res) => {
+  try {
+    const blogPostCount = await BlogPost.countDocuments(); // Get count of all blog posts
+    res.json({ count: blogPostCount });
+  } catch (error) {
+    res.status(500).json({ error: 'Error fetching blog post count' });
+    console.log(error)
+  }
+});
 // Cloudinary Configuration
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
@@ -106,15 +115,7 @@ const extractImageUrls = (content) => {
 
   return images;
 };
-router.get('/count', async (req, res) => {
-  console.log("hitt")
-  try {
-    const blogPostCount = await BlogPost.countDocuments(); // Get count of all blog posts
-    res.json({ count: blogPostCount });
-  } catch (error) {
-    res.status(500).json({ error: 'Error fetching blog post count' });
-  }
-});
+
 
 router.put("/toggle-feature/:id", async (req, res) => {
   try {

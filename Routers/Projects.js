@@ -5,7 +5,14 @@ const multer = require("multer");
 const Project = require("../Models/ProjectsModel");
 
 const router = express.Router();
-
+router.get("/count", async (req, res) => {
+  try {
+    const count = await Project.countDocuments();
+    res.json({ count });
+  } catch (error) {
+    res.status(500).json({ message: "Error fetching project count" });
+  }
+});
 // Configure Cloudinary
 cloudinary.config({
   cloud_name: "dybotqozo",
