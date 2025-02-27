@@ -22,6 +22,7 @@ const generateVerificationCode = () => {
   return Math.floor(100000 + Math.random() * 900000).toString();
 };
 
+
 // Send Verification Code and Save to DB
 router.post('/send-verification', async (req, res) => {
   try {

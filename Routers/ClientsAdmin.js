@@ -1,7 +1,15 @@
 const express = require("express");
 const Client = require("../Models/Clients");
 const router = express.Router();
-
+router.get("/count", async (req, res) => {
+  try {
+    const count = await Client.countDocuments();
+    res.json({ count });
+  } catch (error) {
+    res.status(500).json({ message: "Error fetching client count" });
+    console.log(error)
+  }
+});
 // Get all clients
 router.get("/show", async (req, res) => {
   try {
