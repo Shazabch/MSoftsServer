@@ -63,7 +63,7 @@ router.post("/add", upload.fields([
       testimonial,
       regions,
       category,
-      liveurl,
+      liveUrl: liveurl,
       status = 'listed' // Default to listed if not provided
     } = req.body;
 
