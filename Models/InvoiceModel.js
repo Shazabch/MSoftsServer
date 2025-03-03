@@ -45,11 +45,10 @@ const InvoiceSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
- 
+
   createdAt: {
     type: Date,
-    default: Date.now, // ✅ Automatically sets current date on creation
+    default: Date.now,
   },
-});
-
+})
 module.exports = mongoose.model("Invoice", InvoiceSchema);
