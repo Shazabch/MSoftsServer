@@ -2,6 +2,7 @@ const express = require("express")
 const router = express.Router()
 const Invoice = require('../Models/InvoiceModel');
 const InvoiceItem = require("../Models/InvoiceItems")
+
 // GET /api/invoice-items?invoiceId=INVMAJ-20250224-0001
 router.get("/items", async (req, res) => {
   const { invoiceId } = req.query;
@@ -18,6 +19,46 @@ router.get("/items", async (req, res) => {
     res.status(500).json({ message: "Server Error" });
   }
 });
+
+// PUT /api/invoice/items/:invoiceId
+router.put("/items/:invoiceId", async (req, res) => {
+  const { invoiceId } = req.params;
+  const { items } = req.body;
+
+  try {
+    if (!invoiceId) {
+      return res.status(400).json({ message: "Invoice ID is required" });
+    }
+
+    if (!items || !Array.isArray(items)) {
+      return res.status(400).json({ message: "Items array is required" });
+    }
+
+    // Delete existing items for this invoice
+    await InvoiceItem.deleteMany({ invoiceId });
+
+    // Insert new items
+    const updatedItems = await InvoiceItem.insertMany(
+      items.map(item => ({
+        ...item,
+        invoiceId // Ensure all items have the correct invoiceId
+      }))
+    );
+
+    // Update the invoice's items reference if needed
+    const itemIds = updatedItems.map(item => item._id);
+    await Invoice.findOneAndUpdate(
+      { invoiceId },
+      { items: itemIds }
+    );
+
+    res.json(updatedItems);
+  } catch (error) {
+    console.error("Error updating invoice items:", error);
+    res.status(500).json({ message: "Server Error: " + error.message });
+  }
+});
+
 // Get next invoice ID
 router.get("/next-id", async (req, res) => {
   try {
@@ -47,7 +88,6 @@ router.get("/next-id", async (req, res) => {
 // Create a new invoice
 router.post("/", async (req, res) => {
  try {
-
    const {
      invoiceId,
      clientId,
@@ -65,13 +105,13 @@ router.post("/", async (req, res) => {
    // ✅ Step 1: Validate Required Fields
    if (!invoiceId || !clientId || !bankId || !projectId || subtotal === undefined || total === undefined || !dueDate || !status) {
     return res.status(400).json({ message: "Please provide all required fields." });
-  }
+   }
   
-
-   // ✅ Step 2: Log Items to be Inserted
+   // ✅ Step 2: Check Items
    if (!items || items.length === 0) {
      return res.status(400).json({ message: "At least one invoice item is required." });
    }
+   
    // ✅ Step 3: Insert Invoice Items
    const createdItems = await InvoiceItem.insertMany(
      items.map(item => ({
@@ -79,7 +119,6 @@ router.post("/", async (req, res) => {
        invoiceId, // Linking item to the invoice
      }))
    );
-
 
    const itemIds = createdItems.map(item => item._id); // Extract ObjectIds
 
@@ -100,70 +139,101 @@ router.post("/", async (req, res) => {
 
    const savedInvoice = await invoice.save();
 
-
-   res.status(201).json(savedInvoice);
+   // Return the invoice with items for consistency
+   res.status(201).json({
+     ...savedInvoice.toObject(),
+     items: createdItems
+   });
 
  } catch (error) {
    res.status(500).json({ message: "Server error: " + error.message });
  }
 });
 
-
-
-// Get all invoices
+// Get all invoices with their items
 router.get("/", async (req, res) => {
   try {
-    const invoices = await Invoice.find()
-    res.json(invoices)
+    const invoices = await Invoice.find();
+    
+    // For each invoice, fetch its items
+    const invoicesWithItems = await Promise.all(
+      invoices.map(async (invoice) => {
+        const items = await InvoiceItem.find({ invoiceId: invoice.invoiceId });
+        return {
+          ...invoice.toObject(),
+          items
+        };
+      })
+    );
+    
+    res.json(invoicesWithItems);
   } catch (error) {
-    res.status(500).json({ message: error.message })
+    res.status(500).json({ message: error.message });
   }
-})
+});
 
 // Get a specific invoice
 router.get("/:id", async (req, res) => {
   try {
-    const invoice = await Invoice.findById(req.params.id)
-    if (!invoice) return res.status(404).json({ message: "Invoice not found" })
+    const invoice = await Invoice.findById(req.params.id);
+    if (!invoice) return res.status(404).json({ message: "Invoice not found" });
 
-    const items = await InvoiceItem.find({ invoiceId: invoice.invoiceId })
-    res.json({ ...invoice.toObject(), items })
+    const items = await InvoiceItem.find({ invoiceId: invoice.invoiceId });
+    res.json({ 
+      ...invoice.toObject(), 
+      items 
+    });
   } catch (error) {
-    res.status(500).json({ message: error.message })
+    res.status(500).json({ message: error.message });
   }
-})
+});
 
 // Update an invoice
-router.patch("/:id", async (req, res) => {
+router.put("/:id", async (req, res) => {
   try {
-    const invoice = await Invoice.findByIdAndUpdate(req.params.id, req.body, { new: true })
-    if (!invoice) return res.status(404).json({ message: "Invoice not found" })
+    const { items, ...invoiceData } = req.body;
+    
+    const invoice = await Invoice.findByIdAndUpdate(req.params.id, invoiceData, { new: true });
+    if (!invoice) return res.status(404).json({ message: "Invoice not found" });
 
-    await InvoiceItem.deleteMany({ invoiceId: invoice.invoiceId })
-    const invoiceItems = req.body.items.map((item) => ({
-      ...item,
-      invoiceId: invoice.invoiceId,
-    }))
-    await InvoiceItem.insertMany(invoiceItems)
-
-    res.json(invoice)
+    // Delete existing items and add new ones
+    await InvoiceItem.deleteMany({ invoiceId: invoice.invoiceId });
+    
+    if (items && items.length > 0) {
+      const invoiceItems = items.map((item) => ({
+        ...item,
+        invoiceId: invoice.invoiceId,
+      }));
+      const newItems = await InvoiceItem.insertMany(invoiceItems);
+      
+      // Return the updated invoice with its items
+      res.json({
+        ...invoice.toObject(),
+        items: newItems
+      });
+    } else {
+      res.json({
+        ...invoice.toObject(),
+        items: []
+      });
+    }
   } catch (error) {
-    res.status(400).json({ message: error.message })
+    res.status(400).json({ message: error.message });
+    console.log(error);
   }
-})
+});
 
 // Delete an invoice
 router.delete("/:id", async (req, res) => {
   try {
-    const invoice = await Invoice.findByIdAndDelete(req.params.id)
-    if (!invoice) return res.status(404).json({ message: "Invoice not found" })
+    const invoice = await Invoice.findByIdAndDelete(req.params.id);
+    if (!invoice) return res.status(404).json({ message: "Invoice not found" });
 
-    await InvoiceItem.deleteMany({ invoiceId: invoice.invoiceId })
-    res.json({ message: "Invoice deleted" })
+    await InvoiceItem.deleteMany({ invoiceId: invoice.invoiceId });
+    res.json({ message: "Invoice deleted" });
   } catch (error) {
-    res.status(500).json({ message: error.message })
+    res.status(500).json({ message: error.message });
   }
-})
+});
 
 module.exports = router
-
