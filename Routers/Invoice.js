@@ -98,13 +98,12 @@ router.post("/", async (req, res) => {
      discount,
      subtotal,
      total,
-     dueDate,
      status,
      items
    } = req.body;
 
    // ✅ Step 1: Validate Required Fields
-   if (!invoiceId || !clientId || !bankId || !projectId || subtotal === undefined || total === undefined || !dueDate || !status) {
+   if (!invoiceId || !clientId || !bankId || !projectId || subtotal === undefined || total === undefined  || !status) {
     return res.status(400).json({ message: "Please provide all required fields." });
    }
   
@@ -133,7 +132,6 @@ router.post("/", async (req, res) => {
      discount,
      subtotal,
      total,
-     dueDate,
      status,
      items: itemIds, // Storing the ObjectIds of created items
    });
@@ -148,6 +146,7 @@ router.post("/", async (req, res) => {
 
  } catch (error) {
    res.status(500).json({ message: "Server error: " + error.message });
+   console.log(error)
  }
 });
 

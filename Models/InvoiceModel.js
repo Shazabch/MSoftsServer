@@ -37,10 +37,7 @@ const InvoiceSchema = new mongoose.Schema({
     type: Number,
     required: true,
   },
-  dueDate: {
-    type: Date,
-    required: true,
-  },
+
   status: {
     type: String,
     required: true,
