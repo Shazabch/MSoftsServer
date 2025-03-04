@@ -162,8 +162,9 @@ router.patch("/update-status/:id", async (req, res) => {
 router.put("/update/:id", upload.fields([
   { name: 'backgroundImage', maxCount: 1 },
   { name: 'clientLogo', maxCount: 1 },
-  { name: 'portfolioImage', maxCount: 1 }, // Added portfolio image
-  { name: 'images', maxCount: 10 }
+  { name: 'portfolioImage', maxCount: 1 },
+  { name: 'images', maxCount: 10 },
+  { name: 'existingImages', maxCount: 10 } // Add this line
 ]), async (req, res) => {
   const { id } = req.params;
   try {
@@ -181,20 +182,23 @@ router.put("/update/:id", upload.fields([
       regions,
       category,
       liveUrl,
-      status
+      status,
+      existingImages // Parse existing images from request
     } = req.body;
 
     // Generate new slug if title changed
-    const slug = title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
-
+    const slug = title
+    ? title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)+/g, "")
+    : "default-slug";
+  
     const updatedData = {
       title,
       subtitle,
       slug,
-      category: JSON.parse(category),
+      category: category ? JSON.parse(category) : [],
       description,
       client,
-      technologies: JSON.parse(technologies),
+      technologies: technologies ? JSON.parse(technologies) : [],
       features: features ? JSON.parse(features) : [],
       challenge,
       solution,
@@ -202,8 +206,18 @@ router.put("/update/:id", upload.fields([
       testimonial,
       regions: regions ? JSON.parse(regions) : [],
       liveUrl,
-      status
+      status,
     };
+    
+    // Parse existing images if provided
+    let existingImagesArray = [];
+    if (existingImages) {
+      try {
+        existingImagesArray = JSON.parse(existingImages);
+      } catch (error) {
+        console.error('Error parsing existing images:', error);
+      }
+    }
 
     // Handle file uploads if new files are provided
     if (req.files?.backgroundImage?.[0]) {
@@ -215,9 +229,15 @@ router.put("/update/:id", upload.fields([
     if (req.files?.portfolioImage?.[0]) {
       updatedData.portfolioImage = await uploadToCloudinary(req.files.portfolioImage[0]);
     }
+
+    // Combine existing images with new uploads
+    let newUploadedImages = [];
     if (req.files?.images) {
-      updatedData.images = await Promise.all(req.files.images.map(file => uploadToCloudinary(file)));
+      newUploadedImages = await Promise.all(req.files.images.map(file => uploadToCloudinary(file)));
     }
+
+    // Combine existing and new images
+    updatedData.images = [...existingImagesArray, ...newUploadedImages];
 
     const updatedProject = await Project.findByIdAndUpdate(id, updatedData, {
       new: true,
