@@ -15,7 +15,7 @@ const teamMemberSchema = new mongoose.Schema({
   },
   imageUrl: {
     type: String,
-    required: false, // Make imageUrl optional
+    required: false, 
   },
 });
 

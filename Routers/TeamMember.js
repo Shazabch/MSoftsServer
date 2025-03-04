@@ -2,58 +2,116 @@ const express = require("express");
 const multer = require("multer");
 const { v2: cloudinary } = require("cloudinary");
 const { CloudinaryStorage } = require("multer-storage-cloudinary");
-
-// Import Team Member Model
 const TeamMember = require("../Models/TeamMembersModel");
-
-// Initialize Router
 const router = express.Router();
 
-// Configure Cloudinary
+// Cloudinary configuration
 cloudinary.config({
   cloud_name: "dybotqozo",
   api_key: "176444681733414",
   api_secret: "Iio2fclIU0VyxjD1iE_qW2tbxTg",
 });
 
-// Cloudinary Storage Configuration for Team Images
+// Cloudinary storage configuration
 const storage = new CloudinaryStorage({
   cloudinary,
   params: {
-    folder: "team_images", // Folder for team member images in Cloudinary
-    allowed_formats: ["jpg", "jpeg", "png"], // Allowed image formats
+    folder: "team_images", 
+    allowed_formats: ["jpg", "jpeg", "png"], 
   },
 });
 
-const upload = multer({ storage }); // Multer configuration with Cloudinary storage
+// Multer upload middleware
+const upload = multer({ storage }); 
 
-// **Routes for Team Member Management**
-
-// 1. Add a New Team Member
+// Create team member route
 router.post("/create", upload.single("image"), async (req, res) => {
   const { name, position, description } = req.body;
-
-  if (!name || !position || !description || !req.file) {
-    return res.status(400).json({ error: "All fields are required, including an image." });
+  // Validate required fields
+  if (!name || !position || !description) {
+    return res.status(400).json({ error: "Name, position, and description are required" });
   }
 
   try {
-    const newTeamMember = new TeamMember({
+    // Prepare team member data
+    const teamMemberData = {
       name,
       position,
       description,
-      imageUrl: req.file.path, // Cloudinary image URL
-    });
+      imageUrl: req.file ? req.file.path : null, // Use Cloudinary URL if image uploaded
+    };
 
+    // Create and save team member
+    const newTeamMember = new TeamMember(teamMemberData);
     await newTeamMember.save();
-    res.status(201).json({ message: "Team member added successfully!", data: newTeamMember });
+
+    res.status(201).json({ 
+      message: "Team member added successfully!", 
+      data: newTeamMember 
+    });
   } catch (error) {
     console.error("Error adding team member:", error);
-    res.status(500).json({ error: "Failed to add team member" });
+    res.status(500).json({ 
+      error: "Failed to add team member",
+      details: error.message 
+    });
   }
 });
 
-// 2. Fetch All Team Members
+// Update team member route
+router.put("/update/:id", upload.single("image"), async (req, res) => {
+  const { id } = req.params;
+  const { name, position, description, imageDeleted } = req.body;
+
+  try {
+    // Find existing team member
+    const existingTeamMember = await TeamMember.findById(id);
+
+    if (!existingTeamMember) {
+      return res.status(404).json({ error: "Team member not found" });
+    }
+
+    // Prepare update data
+    const updateData = {};
+
+    // Update text fields if provided
+    if (name) updateData.name = name;
+    if (position) updateData.position = position;
+    if (description) updateData.description = description;
+
+    // Handle image update
+    if (req.file) {
+      // New image uploaded - use Cloudinary URL
+      updateData.imageUrl = req.file.path;
+    } else if (imageDeleted === "true") {
+      // Explicitly delete image
+      updateData.imageUrl = null;
+    }
+
+    // If no update fields, return error
+    if (Object.keys(updateData).length === 0) {
+      return res.status(400).json({ error: "No update fields provided" });
+    }
+
+    // Update the team member
+    const updatedTeamMember = await TeamMember.findByIdAndUpdate(
+      id,
+      updateData,
+      { new: true, runValidators: true }
+    );
+
+    res.status(200).json({ 
+      message: "Team member updated successfully!", 
+      data: updatedTeamMember 
+    });
+
+  } catch (error) {
+    console.error("Error updating team member:", error);
+    res.status(500).json({ error: "Failed to update team member" });
+  }
+});
+
+// Other existing routes remain the same
 router.get("/show", async (req, res) => {
   try {
     const teamMembers = await TeamMember.find();
@@ -64,40 +122,6 @@ router.get("/show", async (req, res) => {
   }
 });
 
-// 3. Update an Existing Team Member
-router.put("/update/:id", upload.single("image"), async (req, res) => {
-  const { id } = req.params;
-  const { name, position, description } = req.body;
-
-  try {
-    const updatedData = {
-      name,
-      position,
-      description,
-    };
-
-    if (req.file) {
-      updatedData.imageUrl = req.file.path; // Update image URL if a new image is uploaded
-    }
-
-    const updatedTeamMember = await TeamMember.findByIdAndUpdate(
-      id,
-      updatedData,
-      { new: true, runValidators: true } // Return the updated document
-    );
-
-    if (!updatedTeamMember) {
-      return res.status(404).json({ error: "Team member not found" });
-    }
-
-    res.status(200).json({ message: "Team member updated successfully!", data: updatedTeamMember });
-  } catch (error) {
-    console.error("Error updating team member:", error);
-    res.status(500).json({ error: "Failed to update team member" });
-  }
-});
-
-// 4. Delete a Team Member
 router.delete("/delete/:id", async (req, res) => {
   const { id } = req.params;
 
@@ -115,5 +139,4 @@ router.delete("/delete/:id", async (req, res) => {
   }
 });
 
-// Export Router
 module.exports = router;
