@@ -58,33 +58,37 @@ router.put("/items/:invoiceId", async (req, res) => {
   }
 });
 
-// Get next invoice ID
 router.get("/next-id", async (req, res) => {
   try {
+    // Find the last invoice in the database, regardless of date
+    const lastInvoice = await Invoice.findOne({})
+      .sort({ createdAt: -1 }) // Sort by creation time to get the most recent invoice
+      .select('invoiceId');
+
     const date = new Date();
     const year = date.getFullYear();
     const month = String(date.getMonth() + 1).padStart(2, "0");
     const day = String(date.getDate()).padStart(2, "0");
     const dateStr = `${year}${month}${day}`;
 
-    // Regular expression to match only today's invoices
-    const lastInvoice = await Invoice.findOne({
-      invoiceId: new RegExp(`^INVMAJ-${dateStr}-\\d{4}$`),
-    }).sort({ invoiceId: -1 });
-
     let nextNumber = 1;
     if (lastInvoice) {
-      const lastNumber = Number.parseInt(lastInvoice.invoiceId.split("-")[2]);
-      nextNumber = lastNumber + 1;
+      // Extract the last number from the most recent invoice
+      const lastNumberMatch = lastInvoice.invoiceId.match(/-(\d{4})$/);
+      if (lastNumberMatch) {
+        const lastNumber = Number.parseInt(lastNumberMatch[1]);
+        nextNumber = lastNumber + 1;
+      }
     }
 
+    // Ensure the next number is always 4 digits
     const nextInvoiceId = `INVMAJ-${dateStr}-${String(nextNumber).padStart(4, "0")}`;
+
     res.json({ nextInvoiceId });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 });
-
 
 // Create a new invoice
 router.post("/", async (req, res) => {
