@@ -1,6 +1,8 @@
 const express = require("express");
 const Client = require("../Models/Clients");
 const router = express.Router();
+const Project = require("../Models/ClientProjects");
+
 router.get("/count", async (req, res) => {
   try {
     const count = await Client.countDocuments();
@@ -19,6 +21,19 @@ router.get("/show", async (req, res) => {
     res.status(500).json({ message: "Failed to retrieve clients." });
   }
 });
+router.get("/client/:clientId", async (req, res) => {
+  try {
+    const { clientId } = req.params;
+    const projects = await Project.find({ clientId });
+    if (!projects) {
+      return res.status(404).json({ message: "No projects found for this client" });
+    }
+    res.json(projects);
+  } catch (err) {
+    res.status(500).json({ message: "Failed to retrieve client projects.", error: err.message });
+  }
+});
+
 router.get("/:id", async (req, res) => {
   try {
     const client = await Client.findById(req.params.id);

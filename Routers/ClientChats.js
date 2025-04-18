@@ -2,7 +2,7 @@ const express = require("express");
 const router = express.Router();
 const Message = require("../Models/ClientChats");
 const auth = require("../Middlewere/Message");
-const io = require("../Socket.io/Socket");
+const socketIO = require("../Socket.io/Socket");
 const multer = require("multer");
 const { CloudinaryStorage } = require("multer-storage-cloudinary");
 const cloudinary = require("cloudinary").v2;
@@ -69,9 +69,9 @@ router.post("/admin", auth, upload.array("attachments", 5), async (req, res) => 
     await newMessage.save();
 
     // Emit message to specific client
-    io.getIO().to(recipientEmail).emit("newMessage", newMessage);
+    socketIO.getIO().to(recipientEmail).emit("newMessage", newMessage);
     // Also emit to admin room
-    io.getIO().to(ADMIN_EMAIL).emit("newMessage", newMessage);
+    socketIO.getIO().to(ADMIN_EMAIL).emit("newMessage", newMessage);
 
     res.status(201).json(newMessage);
   } catch (error) {
@@ -114,9 +114,9 @@ router.post("/", upload.array("attachments"), async (req, res) => {
     await newMessage.save();
 
     // Emit message to specific client
-    io.getIO().to(recipientEmail).emit("newMessage", newMessage);
+    socketIO.getIO().to(recipientEmail).emit("newMessage", newMessage);
     // Also emit to admin room
-    io.getIO().to(ADMIN_EMAIL).emit("newMessage", newMessage);
+    socketIO.getIO().to(ADMIN_EMAIL).emit("newMessage", newMessage);
 
     res.status(201).json(newMessage);
   } catch (error) {
@@ -168,11 +168,10 @@ router.post("/read-all-admin", auth, async (req, res) => {
       { $set: { read: true } }
     );
 
-    // Emit event for frontend
-    const io = req.app.get("socketio");
-    if (io) {
-      io.emit("messagesRead", { clientEmail, updatedBy: "admin" });
-    }
+    // Use the imported socketIO instead of req.app.get("socketio")
+    // Send to both admin and client rooms
+    socketIO.getIO().to(ADMIN_EMAIL).emit("messagesRead", { clientEmail, updatedBy: "admin" });
+    socketIO.getIO().to(clientEmail).emit("messagesRead", { clientEmail, updatedBy: "admin" });
 
     res.json({ message: "All messages marked as read", updatedMessages });
   } catch (error) {
@@ -195,11 +194,10 @@ router.post("/read-all", auth, async (req, res) => {
       { $set: { read: true } }
     );
 
-    // Emit event for frontend with context
-    const io = req.app.get("socketio");
-    if (io) {
-      io.emit("messagesRead", { clientEmail: userEmail, updatedBy: "client" });
-    }
+    // Use the imported socketIO instead of req.app.get("socketio")
+    // Send to both admin and client rooms
+    socketIO.getIO().to(ADMIN_EMAIL).emit("messagesRead", { clientEmail: userEmail, updatedBy: "client" });
+    socketIO.getIO().to(userEmail).emit("messagesRead", { clientEmail: userEmail, updatedBy: "client" });
 
     res.json({ message: "All messages marked as read" });
   } catch (error) {

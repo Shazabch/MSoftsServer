@@ -37,15 +37,22 @@ const InvoiceSchema = new mongoose.Schema({
     type: Number,
     required: true,
   },
-
   status: {
     type: String,
     required: true,
   },
-
+  dueDate: {
+    type: Date,
+    required: true,
+  },
   createdAt: {
     type: Date,
     default: Date.now,
   },
-})
+  updatedAt: {
+    type: Date,
+    default: Date.now,
+  }
+});
+
 module.exports = mongoose.model("Invoice", InvoiceSchema);

@@ -29,8 +29,7 @@ router.post("/reset-password", async (req, res) => {
     const resetToken = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '1h' });
 
     // Create the reset link
-    const resetLink = `https://majesticsofts.com//reset-password/${encodeURIComponent(resetToken)}`;
-    console.log("Reset Link:", resetLink); // Debugging reset link
+    const resetLink = `https://majesticsofts.com/reset-password/${encodeURIComponent(resetToken)}`;
 
     // Create reusable transporter
     const transporter = nodemailer.createTransport({
@@ -50,26 +49,91 @@ router.post("/reset-password", async (req, res) => {
     // Create email template
     const mailOptions = {
       from: {
-        name: "Majestic Softs",
-        address: process.env.EMAIL_USER
+        name: "Majestic Softs Team",
+        address: process.env.EMAIL_USER,
       },
       to: email,
-      subject: "Password Reset Request",
-      text: `Click the link below to reset your password:\n\n${resetLink}\n\nThis link will expire in 1 hour.\n\nIf you didn't request this, please ignore this email.`,
+      subject: "🔐 Reset Your Password - Majestic Softs",
       html: `
-        <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
-          <h2 style="color: #333; text-align: center;">Password Reset Request</h2>
-          <p style="color: #666;">Click the button below to reset your password:</p>
-          <div style="text-align: center; margin: 30px 0;">
-            <a href="${resetLink}" 
-               style="background-color: #4F46E5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; display: inline-block;">
-              Reset Password
-            </a>
-          </div>
-          <p style="color: #666; font-size: 14px;">This link will expire in 1 hour.</p>
-          <p style="color: #666; font-size: 14px;">If you didn't request this, please ignore this email. Your password will remain unchanged.</p>
-        </div>
-      `
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>Reset Your Password - Majestic Softs</title>
+      <style>
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap');
+      </style>
+    </head>
+    <body style="margin: 0; padding: 0; font-family: 'Poppins', Arial, sans-serif; background-color: #f4f7fa; color: #333333;">
+      <table cellpadding="0" cellspacing="0" border="0" width="100%" style="min-width: 100%;">
+        <tr>
+          <td align="center" style="padding: 40px 0;">
+            <table cellpadding="0" cellspacing="0" border="0" width="600" style="max-width: 600px; background-color: #ffffff; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+              <!-- Header with fixed logo -->
+              <tr>
+                <td align="center" style="padding: 0; border-radius: 8px 8px 0 0;">
+                  <div style="width: 250px; height: 120px; background-image: url('https://majesticsofts.com/assets/MS2-DIynU2HX.png'); background-size: contain; background-position: center; background-repeat: no-repeat;"></div>
+                </td>
+              </tr>
+              
+              <!-- Main content -->
+              <tr>
+                <td style="padding: 40px 30px;">
+                  <h1 style="color: #6E42CD; font-size: 28px; font-weight: 600; margin: 0 0 20px; text-align: center;">Password Reset Request 🔐</h1>
+                  
+                  <p style="font-size: 16px; line-height: 1.5; margin: 0 0 20px;">We received a request to reset your password for your Majestic Softs account. To proceed with resetting your password, please click the button below.</p>
+                  
+                  <table cellpadding="0" cellspacing="0" border="0" width="100%" style="margin-bottom: 30px;">
+                    <tr>
+                      <td align="center">
+                        <a href="${resetLink}" style="display: inline-block; background-color: #6E42CD; color: #ffffff; font-size: 16px; font-weight: 600; text-decoration: none; padding: 14px 30px; border-radius: 5px;">Reset Password</a>
+                      </td>
+                    </tr>
+                  </table>
+                  
+                  <div style="border-left: 4px solid #ffa500; padding-left: 20px; margin-bottom: 20px;">
+                    <h3 style="color: #ffa500; font-size: 18px; font-weight: 600; margin: 0 0 10px;">Important Security Notice</h3>
+                    <p style="font-size: 14px; line-height: 1.5; margin: 0;">
+                      This password reset link will expire in <strong>1 hour</strong> for your security.
+                      If you didn't request this password reset, please ignore this email or contact our support team immediately.
+                    </p>
+                  </div>
+                  
+                  <table cellpadding="0" cellspacing="0" border="0" width="100%" style="background-color: #f8f9fa; border-radius: 8px; margin-bottom: 20px;">
+                    <tr>
+                      <td style="padding: 20px;">
+                        <p style="font-size: 14px; line-height: 1.5; margin: 0;">
+                          If the button above doesn't work, you can also copy and paste the following URL into your browser:
+                        </p>
+                        <p style="font-size: 12px; line-height: 1.5; margin: 10px 0 0; word-break: break-all; background-color: #e8f4fd; padding: 10px; border-radius: 4px; font-family: monospace;">
+                          ${resetLink}
+                        </p>
+                      </td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+              
+              <!-- Footer -->
+              <tr>
+                <td style="background-color: #f4f7fa; padding: 30px; border-radius: 0 0 8px 8px;">
+                  <p style="font-size: 14px; color: #666666; text-align: center; margin: 0;">
+                    Best regards,<br>
+                    <strong style="color: #6E42CD;">The Majestic Softs Team</strong>
+                  </p>
+                  <p style="font-size: 12px; color: #999999; text-align: center; margin: 15px 0 0;">
+                    &copy; ${new Date().getFullYear()} Majestic Softs. All rights reserved.
+                  </p>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+      </table>
+    </body>
+    </html>
+      `,
     };
 
     // Send the reset email

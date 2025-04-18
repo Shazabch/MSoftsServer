@@ -92,6 +92,7 @@ router.get("/next-id", async (req, res) => {
 
 // Create a new invoice
 router.post("/", async (req, res) => {
+  console.log("Creating invoice with data:", req.body);
  try {
    const {
      invoiceId,
@@ -101,6 +102,7 @@ router.post("/", async (req, res) => {
      salesTax,
      discount,
      subtotal,
+     dueDate,
      total,
      status,
      items
@@ -135,6 +137,7 @@ router.post("/", async (req, res) => {
      salesTax,
      discount,
      subtotal,
+     dueDate,
      total,
      status,
      items: itemIds, // Storing the ObjectIds of created items
@@ -239,5 +242,76 @@ router.delete("/:id", async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 });
+const verifyToken = async (req, res, next) => {
+  try {
+    const token = req.headers.authorization?.split(' ')[1];
+    
+    if (!token) {
+      return res.status(401).json({ message: 'No token provided' });
+    }
 
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    
+    // Find client by email to ensure they exist and get their ID
+    const client = await Client.findOne({ email: decoded.email });
+    if (!client) {
+      return res.status(404).json({ message: 'Client not found' });
+    }
+
+    req.clientEmail = decoded.email;
+    req.clientId = client._id;
+    next();
+  } catch (error) {
+    console.error('Token verification error:', error);
+    return res.status(401).json({ message: 'Invalid token' });
+  }
+};
+
+// Get all invoices for logged-in client
+router.get('', verifyToken, async (req, res) => {
+  try {
+    const client = await Client.findOne({ email: req.clientEmail });
+    if (!client) {
+      return res.status(404).json({ message: 'Client not found' });
+    }
+
+    const invoices = await Invoice.find({ clientId: client._id })
+      .populate('items')
+      .sort({ createdAt: -1 });
+      
+    res.json(invoices);
+  } catch (error) {
+    console.error('Error fetching invoices:', error);
+    res.status(500).json({ message: 'Error fetching invoices' });
+  }
+});
+
+// Get individual invoice for logged-in client
+router.get('/:invoiceId', verifyToken, async (req, res) => {
+  try {
+    const { invoiceId } = req.params;
+    const client = await Client.findOne({ email: req.clientEmail });
+    
+    if (!client) {
+      return res.status(404).json({ message: 'Client not found' });
+    }
+
+    const invoice = await Invoice.findOne({
+      _id: invoiceId,
+      clientId: client._id
+    }).populate('items');
+
+    if (!invoice) {
+      return res.status(404).json({ message: 'Invoice not found or unauthorized' });
+    }
+
+    res.json(invoice);
+  } catch (error) {
+    console.error('Error fetching invoice:', error);
+    if (error.name === 'CastError') {
+      return res.status(400).json({ message: 'Invalid invoice ID format' });
+    }
+    res.status(500).json({ message: 'Error fetching invoice' });
+  }
+});
 module.exports = router

@@ -11,7 +11,7 @@ module.exports = {
       transports: ['polling', 'websocket'],
     });
     io.on('connection', (socket) => {
-      // console.log('New connection: ' + socket.id);
+      console.log('New connection: ' + socket.id);
 
       // Join a room based on the user's email
       socket.on('join', (email) => {

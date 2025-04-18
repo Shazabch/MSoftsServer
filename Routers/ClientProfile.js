@@ -30,7 +30,6 @@ const upload = multer({
   }
 });
 
-// Get client profile by ID
 router.get('/show/:id', async (req, res) => {
   try {
     const client = await Client.findById(req.params.id);

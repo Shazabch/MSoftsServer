@@ -49,7 +49,7 @@ app.use("/uploads", express.static(path.join(__dirname, "./Multer/Uploads")))
 
 app.use(
   session({
-    secret: process.env.SESSION_SECRET || "defaultSecret", // Use a strong secret
+    secret: process.env.SESSION_SECRET || "msofts", // Use a strong secret
     resave: false,
     saveUninitialized: false,
     store: MongoStore.create({
