@@ -30,7 +30,8 @@ const ProfileRouter = require("../Routers/ClientProfile")
 const ClientchatRouter = require("../Routers/ClientChats")
 const BankRouter = require("../Routers/BankManagment")
 const InvoiceRouter = require("../Routers/Invoice")
-
+const ClientSupportouter = require("../Routers/ClientSupport")
+const ClientNotificationRouter = require("../Routers/ClientNotifications")
 
 // Initialize Express app
 const app = express();
@@ -100,7 +101,8 @@ app.use("/api/profile", ProfileRouter)
 app.use("/api/messages", ClientchatRouter)
 app.use("/api/bank",BankRouter)
 app.use("/api/invoice",InvoiceRouter)
-
+app.use("/api/client/support-ticket",ClientSupportouter)
+app.use("/api/client/notification",ClientNotificationRouter)
 
 // Set the PORT
 const PORT = process.env.PORT || 5000;

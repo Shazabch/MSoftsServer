@@ -2,7 +2,35 @@ const express = require("express")
 const router = express.Router()
 const Invoice = require('../Models/InvoiceModel');
 const InvoiceItem = require("../Models/InvoiceItems")
+const Client = require('../Models/Clients'); // Adjust path as needed
+const ClientProject = require('../Models/ClientProjects');
+const Bank = require('../Models/Banks');
 
+router.get("/show", async (req, res) => {
+  try {
+    const invoices = await Invoice.find()
+      .populate('clientId')
+      .populate('bankId')
+      .populate('projectId');
+    
+    // For each invoice, fetch its items
+    const invoicesWithItems = await Promise.all(
+      invoices.map(async (invoice) => {
+        const items = await InvoiceItem.find({ invoiceId: invoice.invoiceId });
+        return {
+          ...invoice.toObject(),
+          items
+        };
+      })
+    );
+    
+    res.json(invoicesWithItems);
+  } catch (error) {
+    console.error("Error fetching invoices:", error);
+    res.status(500).json({ message: error.message });
+    console.log(error)
+  }
+});
 // GET /api/invoice-items?invoiceId=INVMAJ-20250224-0001
 router.get("/items", async (req, res) => {
   const { invoiceId } = req.query;
@@ -92,7 +120,7 @@ router.get("/next-id", async (req, res) => {
 
 // Create a new invoice
 router.post("/", async (req, res) => {
-  console.log("Creating invoice with data:", req.body);
+  
  try {
    const {
      invoiceId,
@@ -229,6 +257,32 @@ router.put("/:id", async (req, res) => {
     console.log(error);
   }
 });
+router.get("/current", async (req, res) => {
+  try {
+    // Assuming req.clientEmail is set by your auth middleware
+    const clientEmail = req.clientEmail;
+    
+    if (!clientEmail) {
+      return res.status(401).json({ message: "Not authenticated" });
+    }
+    
+    const client = await Client.findOne({ email: clientEmail });
+    
+    if (!client) {
+      return res.status(404).json({ message: "Client not found" });
+    }
+    
+    // Return only necessary info (don't send password, etc.)
+    res.json({
+      id: client._id,
+      email: client.email,
+      name: client.name // If you have this field
+    });
+  } catch (error) {
+    console.error("Error fetching client info:", error);
+    res.status(500).json({ message: "Server Error" });
+  }
+});
 
 // Delete an invoice
 router.delete("/:id", async (req, res) => {
@@ -242,33 +296,10 @@ router.delete("/:id", async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 });
-const verifyToken = async (req, res, next) => {
-  try {
-    const token = req.headers.authorization?.split(' ')[1];
-    
-    if (!token) {
-      return res.status(401).json({ message: 'No token provided' });
-    }
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    
-    // Find client by email to ensure they exist and get their ID
-    const client = await Client.findOne({ email: decoded.email });
-    if (!client) {
-      return res.status(404).json({ message: 'Client not found' });
-    }
-
-    req.clientEmail = decoded.email;
-    req.clientId = client._id;
-    next();
-  } catch (error) {
-    console.error('Token verification error:', error);
-    return res.status(401).json({ message: 'Invalid token' });
-  }
-};
 
 // Get all invoices for logged-in client
-router.get('', verifyToken, async (req, res) => {
+router.get('/', async (req, res) => {
   try {
     const client = await Client.findOne({ email: req.clientEmail });
     if (!client) {
@@ -287,7 +318,7 @@ router.get('', verifyToken, async (req, res) => {
 });
 
 // Get individual invoice for logged-in client
-router.get('/:invoiceId', verifyToken, async (req, res) => {
+router.get('/:invoiceId', async (req, res) => {
   try {
     const { invoiceId } = req.params;
     const client = await Client.findOne({ email: req.clientEmail });

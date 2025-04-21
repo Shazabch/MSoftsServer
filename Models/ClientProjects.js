@@ -19,13 +19,13 @@ const projectSchema = new mongoose.Schema({
     default: "In Progress",
   },
 
-  features: { type: String, required: true },  // Store features (comma-separated)
-  budget: { type: Number, required: true },    // Store budget
-  deadline: { type: Date, required: true },    // Store deadline as Date
-  daysRemaining: { type: Number },             // Dynamically calculated based on deadline
-  progress: { type: Number, default: 0 },      // Track project progress
-  lastUpdate: { type: Date, default: Date.now }, // Automatically set the last updated time
-  description: { type: String, required: true }, // Store description
+  features: { type: String, required: true }, 
+  budget: { type: Number, required: true },   
+  deadline: { type: Date, required: true },    
+  daysRemaining: { type: Number },             
+  progress: { type: Number, default: 0 },     
+  lastUpdate: { type: Date, default: Date.now },
+  description: { type: String, required: true }, 
 });
 
-module.exports = mongoose.model("ClientProject", projectSchema);
+module.exports = mongoose.model("clientProjects", projectSchema);

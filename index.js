@@ -31,6 +31,8 @@ const ProfileRouter = require("./Routers/ClientProfile")
 const ClientchatRouter = require("./Routers/ClientChats")
 const BankRouter = require("./Routers/BankManagment")
 const InvoiceRouter = require("./Routers/Invoice")
+const ClientSupportouter = require("./Routers/ClientSupport")
+const ClientNotificationRouter = require("./Routers/ClientNotifications")
 
 // Initialize Express app
 const app = express()
@@ -49,16 +51,16 @@ app.use("/uploads", express.static(path.join(__dirname, "./Multer/Uploads")))
 
 app.use(
   session({
-    secret: process.env.SESSION_SECRET || "msofts", // Use a strong secret
+    secret: process.env.SESSION_SECRET || "msofts", 
     resave: false,
     saveUninitialized: false,
     store: MongoStore.create({
-      mongoUrl: process.env.MONGO_URI, // MongoDB connection string
-      collectionName: "sessions", // Optional: custom session collection name
+      mongoUrl: process.env.MONGO_URI, 
+      collectionName: "sessions",
     }),
     cookie: {
-      secure: process.env.NODE_ENV === "production", // Use HTTPS in production
-      maxAge: 1000 * 60 * 60 * 24, // 1 day
+      secure: process.env.NODE_ENV === "production", 
+      maxAge: 1000 * 60 * 60 * 24, 
     },
   }),
 )
@@ -100,6 +102,8 @@ app.use("/api/profile", ProfileRouter)
 app.use("/api/messages", ClientchatRouter)
 app.use("/api/bank",BankRouter)
 app.use("/api/invoice",InvoiceRouter)
+app.use("/api/client/support-ticket",ClientSupportouter)
+app.use("/api/client/notification",ClientNotificationRouter)
 
 // Set the PORT
 const PORT = process.env.PORT || 5000
