@@ -132,35 +132,11 @@ router.put('/show/read-all', async (req, res) => {
   }
 });
 
-// Delete a specific notification
+// Route to delete a specific notification
 router.delete('/show/:id', async (req, res) => {
   try {
-    const notification = await Notification.findByIdAndDelete(req.params.id);
+    const { id } = req.params;
     
-    if (!notification) {
-      return res.status(404).json({
-        success: false,
-        message: 'Notification not found'
-      });
-    }
-    
-    res.status(200).json({
-      success: true,
-      message: 'Notification deleted successfully'
-    });
-    
-  } catch (error) {
-    console.error('Error deleting notification:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to delete notification. Please try again later.'
-    });
-  }
-});
-
-// Clear all notifications for a user based on email from token
-router.delete('/show/clear-all', async (req, res) => {
-  try {
     // Get token from authorization header
     const token = req.headers.authorization;
     
@@ -180,22 +156,130 @@ router.delete('/show/clear-all', async (req, res) => {
         message: 'Unable to extract email from token'
       });
     }
+
+    // Special case for "clear-all" - redirect to the bulk delete endpoint
+    if (id === 'clear-all') {
+      const result = await Notification.deleteMany({ userEmail });
+      
+      return res.status(200).json({
+        success: true,
+        deleted: result.deletedCount,
+        message: 'All notifications cleared'
+      });
+    }
+
+    // Regular single notification delete with proper ObjectId validation
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid notification ID format'
+      });
+    }
     
-    const result = await Notification.deleteMany({ userEmail });
+    const result = await Notification.findOneAndDelete({ 
+      _id: id,
+      userEmail
+    });
+    
+    if (!result) {
+      return res.status(404).json({
+        success: false,
+        message: 'Notification not found or you are not authorized to delete it'
+      });
+    }
     
     res.status(200).json({
       success: true,
-      deleted: result.deletedCount,
-      message: 'All notifications cleared'
+      message: 'Notification deleted successfully'
     });
     
   } catch (error) {
-    console.error('Error clearing notifications:', error);
+    console.error('Error deleting notification:', error);
     res.status(500).json({
       success: false,
-      message: 'Failed to clear notifications. Please try again later.'
+      message: 'Failed to delete notification. Please try again later.'
     });
   }
+});
+
+// Clear all notifications for a user based on email from token
+router.delete('/show/clear-all', async (req, res) => {
+ try {
+   // Get token from authorization header
+   const token = req.headers.authorization;
+   
+   if (!token) {
+     return res.status(401).json({
+       success: false,
+       message: 'Authorization token is required'
+     });
+   }
+   
+   // Extract email from token
+   const userEmail = getEmailFromToken(token);
+   
+   if (!userEmail) {
+     return res.status(400).json({
+       success: false,
+       message: 'Unable to extract email from token'
+     });
+   }
+   
+   const result = await Notification.deleteMany({ userEmail });
+   
+   res.status(200).json({
+     success: true,
+     deleted: result.deletedCount,
+     message: 'All notifications cleared'
+   });
+   
+ } catch (error) {
+   console.error('Error clearing notifications:', error);
+   res.status(500).json({
+     success: false,
+     message: 'Failed to clear notifications. Please try again later.'
+   });
+ }
+});
+router.get('/unread-count', async (req, res) => {
+ try {
+   // Get token from authorization header
+   const token = req.headers.authorization;
+   
+   if (!token) {
+     return res.status(401).json({
+       success: false,
+       message: 'Authorization token is required'
+     });
+   }
+   
+   // Extract email from token
+   const userEmail = getEmailFromToken(token);
+   
+   if (!userEmail) {
+     return res.status(400).json({
+       success: false,
+       message: 'Unable to extract email from token'
+     });
+   }
+   
+   // Count unread notifications by email
+   const unreadCount = await Notification.countDocuments({ 
+     userEmail, 
+     read: false 
+   });
+   
+   res.status(200).json({
+     success: true,
+     unreadCount
+   });
+ } catch (error) {
+   console.error('Error fetching unread notifications count:', error);
+   res.status(500).json({
+     success: false,
+     message: 'Failed to retrieve notifications count. Please try again later.'
+   });
+ }
 });
 
 module.exports = router;
