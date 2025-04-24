@@ -45,12 +45,18 @@ const taskSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['todo', 'inProgress', 'completed'],
+    enum: ['todo', 'inProgress', 'inReview', 'done'],
     default: 'todo'
   },
   assignee: {
     type: String,
-    ref: ''
+    ref: 'TaskFlowTeam',
+    required: true
+  },
+  priority: {
+    type: String,
+    enum: ['low', 'medium', 'high', 'urgent'],
+    default: 'low'
   },
   createdAt: {
     type: Date,

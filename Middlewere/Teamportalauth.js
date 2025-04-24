@@ -1,7 +1,7 @@
 const jwt = require('jsonwebtoken');
 
 // Environment variables
-const JWT_SECRET = process.env.JWT_SECRET || 'your_jwt_secret';
+const JWT_SECRET = process.env.JWT_SECRET || 'msofts';
 
 // Authentication Middleware
 const authenticate = (req, res, next) => {

@@ -287,35 +287,5 @@ router.delete("/delete/:id", async (req, res) => {
   }
 });
 
-// Add this test route to diagnose notification issues
-router.post("/test-notification", async (req, res) => {
-  console.log("POST /api/projects/test-notification - Testing notification creation");
-  try {
-    const { email, title, message, type } = req.body;
-    
-    if (!email || !title || !message) {
-      return res.status(400).json({ message: "Email, title, and message are required" });
-    }
-    
-    console.log(`Testing notification creation for ${email}`);
-    const notification = await createNotification(
-      email,
-      title,
-      message,
-      type || 'info'
-    );
-    
-    if (notification) {
-      console.log("Test notification created successfully");
-      res.status(201).json({ success: true, notification });
-    } else {
-      console.log("Failed to create test notification");
-      res.status(500).json({ success: false, message: "Failed to create notification" });
-    }
-  } catch (error) {
-    console.error("Error in test notification route:", error);
-    res.status(500).json({ message: "Server error: " + error.message });
-  }
-});
 
 module.exports = router;
