@@ -2,7 +2,6 @@ const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-// Fix the import - make sure the model is correctly exported from Task.js
 const { TaskFlowTeam } = require('../../Models/Task');
 const { authenticate, JWT_SECRET } = require('../../Middlewere/Teamportalauth');
 
@@ -43,7 +42,7 @@ router.post('/login', async (req, res) => {
     const token = jwt.sign(
       { id: 'superadmin', email: 'superadmin@gmail.com', role: 'superadmin' },
       JWT_SECRET,
-      { expiresIn: '1d' }
+      { expiresIn: '24h' } // Explicitly set to 24 hours (1 day)
     );
     
     return res.json({
@@ -74,7 +73,7 @@ router.post('/login', async (req, res) => {
     const token = jwt.sign(
       { id: taskFlowTeam.id, email: taskFlowTeam.email, role: taskFlowTeam.role },
       JWT_SECRET,
-      { expiresIn: '1d' }
+      { expiresIn: '24h' } // Explicitly set to 24 hours (1 day)
     );
     
     res.json({

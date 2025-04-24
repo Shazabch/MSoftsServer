@@ -5,11 +5,6 @@ const { Task } = require('../../Models/Task');
 const { authenticate } = require('../../Middlewere/Teamportalauth');
 const ClientProjects = require('../../Models/ClientProjects'); // Corrected import statement
 
-/**
- * @route GET /team/task/show
- * @desc Get tasks, optionally filtered by project ID
- * @access Private
- */
 router.get('/show', authenticate, async (req, res) => {
   try {
     const { project } = req.query;
@@ -25,11 +20,6 @@ router.get('/show', authenticate, async (req, res) => {
   }
 });
 
-/**
- * @route POST /team/task/add
- * @desc Create a new task
- * @access Private
- */
 router.post('/add', authenticate, async (req, res) => {
   const { title, description, status, assignee, project, priority } = req.body;
   
@@ -62,11 +52,6 @@ router.post('/add', authenticate, async (req, res) => {
   }
 });
 
-/**
- * @route PUT /team/task/update/:id
- * @desc Update an existing task
- * @access Private
- */
 router.put('/update/:id', authenticate, async (req, res) => {
   const { id } = req.params;
   const { title, description, status, assignee, project, priority } = req.body;
@@ -103,11 +88,6 @@ router.put('/update/:id', authenticate, async (req, res) => {
   }
 });
 
-/**
- * @route DELETE /team/task/del/:id
- * @desc Delete a task
- * @access Private
- */
 router.delete('/del/:id', authenticate, async (req, res) => {
   const { id } = req.params;
   
@@ -127,11 +107,6 @@ router.delete('/del/:id', authenticate, async (req, res) => {
   }
 });
 
-/**
- * @route GET /team/task/project-search
- * @desc Get all projects for task assignment (frontend will handle filtering)
- * @access Private
- */
 router.get('/project-search', authenticate, async (req, res) => {
   try {
     // Get all projects without filtering
@@ -145,5 +120,125 @@ router.get('/project-search', authenticate, async (req, res) => {
     res.status(500).json({ error: "Failed to fetch projects", details: error.message });
   }
 });
+router.patch('/move-status/:taskid', authenticate, async (req, res) => {
+  const { taskIds, newStatus } = req.body;
+  
+  // Validate required fields
+  if (!taskIds || !newStatus) {
+    return res.status(400).json({ 
+      message: 'Missing required fields: taskIds and newStatus are required' 
+    });
+  }
+  
+  // Validate status value
+  const validStatuses = ['todo', 'in-progress', 'review', 'done'];
+  if (!validStatuses.includes(newStatus)) {
+    return res.status(400).json({ 
+      message: `Invalid status. Status must be one of: ${validStatuses.join(', ')}` 
+    });
+  }
 
+  try {
+    // Handle both single ID and array of IDs
+    const ids = Array.isArray(taskIds) ? taskIds : [taskIds];
+    
+    // Find and update all specified tasks
+    const updateResults = await Promise.all(
+      ids.map(async (id) => {
+        const task = await Task.findOne({ id });
+        
+        if (!task) {
+          return { id, success: false, message: 'Task not found' };
+        }
+        
+        // Update the status
+        task.status = newStatus;
+        await task.save();
+        
+        return { 
+          id, 
+          success: true, 
+          task
+        };
+      })
+    );
+    
+    // Count successful updates
+    const successCount = updateResults.filter(result => result.success).length;
+    
+    if (successCount === 0) {
+      return res.status(404).json({ 
+        message: 'No tasks were updated', 
+        results: updateResults 
+      });
+    }
+    
+    res.json({
+      message: `Successfully moved ${successCount} task(s) to ${newStatus} status`,
+      results: updateResults
+    });
+    
+  } catch (error) {
+    console.error('Error moving tasks:', error);
+    res.status(500).json({ 
+      message: 'Server error', 
+      error: error.message 
+    });
+  }
+});
+
+/**
+ * Bulk move tasks between statuses
+ * Allows moving multiple tasks with specified source and target statuses
+ */
+router.patch('/bulk-move-status', authenticate, async (req, res) => {
+  const { fromStatus, toStatus, projectId } = req.body;
+  
+  // Validate required fields
+  if (!fromStatus || !toStatus) {
+    return res.status(400).json({ 
+      message: 'Missing required fields: fromStatus and toStatus are required' 
+    });
+  }
+  
+  // Validate status values
+  const validStatuses = ['todo', 'in-progress', 'review', 'done'];
+  if (!validStatuses.includes(fromStatus) || !validStatuses.includes(toStatus)) {
+    return res.status(400).json({ 
+      message: `Invalid status. Status must be one of: ${validStatuses.join(', ')}` 
+    });
+  }
+
+  try {
+    // Build query with optional project filter
+    const query = { status: fromStatus };
+    if (projectId) {
+      query.project = projectId;
+    }
+    
+    // Find all matching tasks and update them
+    const result = await Task.updateMany(
+      query,
+      { $set: { status: toStatus } }
+    );
+    
+    if (result.matchedCount === 0) {
+      return res.status(404).json({ 
+        message: `No tasks found with status '${fromStatus}'${projectId ? ' in the specified project' : ''}` 
+      });
+    }
+    
+    res.json({
+      message: `Successfully moved ${result.modifiedCount} task(s) from '${fromStatus}' to '${toStatus}'`,
+      modifiedCount: result.modifiedCount
+    });
+    
+  } catch (error) {
+    console.error('Error bulk moving tasks:', error);
+    res.status(500).json({ 
+      message: 'Server error', 
+      error: error.message 
+    });
+  }
+});
 module.exports = router;
