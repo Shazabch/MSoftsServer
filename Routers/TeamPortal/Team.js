@@ -6,7 +6,7 @@ const { TaskFlowTeam } = require('../../Models/Task');
 const { authenticate, requireSuperAdmin } = require('../../Middlewere/Teamportalauth');
 
 // Get all team members
-router.get('/', authenticate, requireSuperAdmin, async (req, res) => {
+router.get('/', authenticate, async (req, res) => {
   try {
     // Check if TaskFlowTeam exists before using it
     if (!TaskFlowTeam) {
@@ -23,7 +23,7 @@ router.get('/', authenticate, requireSuperAdmin, async (req, res) => {
 });
 
 // Add new team member
-router.post('/new', authenticate, requireSuperAdmin, async (req, res) => {
+router.post('/new', authenticate, async (req, res) => {
   const { name, email, password, role } = req.body;
   
   try {

@@ -1,5 +1,49 @@
+// Update Task Schema
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
+
+// Activity Log Schema
+const activityLogSchema = new mongoose.Schema({
+  taskId: {
+    type: String,
+    required: true,
+    ref: 'Task'
+  },
+  userId: {
+    type: String,
+    required: true,
+    ref: 'TaskFlowTeam'
+  },
+  action: {
+    type: String,
+    required: true,
+    enum: ['created', 'updated', 'comment', 'status_change', 'assigned']
+  },
+  details: {
+    type: mongoose.Schema.Types.Mixed
+  },
+  createdAt: {
+    type: Date,
+    default: Date.now
+  }
+});
+
+// Comment Schema
+const commentSchema = new mongoose.Schema({
+  content: {
+    type: String,
+    required: true
+  },
+  userId: {
+    type: String,
+    required: true,
+    ref: 'TaskFlowTeam'
+  },
+  createdAt: {
+    type: Date,
+    default: Date.now
+  }
+});
 
 // User Schema
 const userSchema = new mongoose.Schema({
@@ -49,9 +93,8 @@ const taskSchema = new mongoose.Schema({
     default: 'todo'
   },
   assignee: {
-    type: String,
-    ref: 'TaskFlowTeam',
-    required: true
+    type: String,  // Keep as String since you're storing UUIDs
+    ref: 'TaskFlowTeam'
   },
   priority: {
     type: String,
@@ -63,12 +106,25 @@ const taskSchema = new mongoose.Schema({
     default: Date.now
   },
   project: {
-    type: String,
+    type: String,  // Make sure this is String if you're storing a UUID
     default: 'default-project'
+  },
+  comments: [commentSchema],
+  timeTracking: {
+    totalTime: {
+      type: Number,
+      default: 0
+    },
+    sessions: [{
+      startTime: Date,
+      endTime: Date,
+      duration: Number
+    }]
   }
 }, { timestamps: true });
 
 const TaskFlowTeam = mongoose.model('TaskFlowTeam', userSchema);
 const Task = mongoose.model('Task', taskSchema);
+const ActivityLog = mongoose.model('ActivityLog', activityLogSchema);
 
-module.exports = { TaskFlowTeam, Task };
+module.exports = { TaskFlowTeam, Task, ActivityLog };
