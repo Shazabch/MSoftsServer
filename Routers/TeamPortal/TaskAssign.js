@@ -9,7 +9,7 @@ const jwt = require('jsonwebtoken');
 router.get('/show', authenticate, async (req, res) => {
   try {
     const { project, assigneeEmail } = req.query;
-    console.log('Query parameters:', req.query);
+    // console.log('Query parameters:', req.query);
         let query = {};
         const userRole = req.user?.role || 'user';
     console.log('User role:', userRole);
@@ -20,7 +20,7 @@ router.get('/show', authenticate, async (req, res) => {
         if (assigneeEmail.startsWith('eyJ')) {
           try {
             const decoded = jwt.verify(assigneeEmail, process.env.JWT_SECRET);
-            console.log('Decoded token:', decoded);
+            // console.log('Decoded token:', decoded);
                         if (decoded.email !== req.user.email) {
               query.assignee = decoded.email;
             }            
