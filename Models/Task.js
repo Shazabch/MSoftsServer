@@ -93,7 +93,7 @@ const taskSchema = new mongoose.Schema({
     default: 'todo'
   },
   assignee: {
-    type: String,  // Keep as String since you're storing UUIDs
+    type: String,  
     ref: 'TaskFlowTeam'
   },
   priority: {

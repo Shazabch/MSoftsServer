@@ -1,13 +1,16 @@
 const express = require('express');
 const router = express.Router();
 const { v4: uuidv4 } = require('uuid');
-const { Task,User } = require('../../Models/Task');
+const { Task, TaskFlowTeam } = require('../../Models/Task');
 const { authenticate } = require('../../Middlewere/Teamportalauth');
 const ClientProjects = require('../../Models/ClientProjects');
+const jwt = require('jsonwebtoken'); // Make sure jwt is imported
 
 router.get('/show', authenticate, async (req, res) => {
   try {
     const { project, assigneeEmail } = req.query;
+    console.log('Query parameters:', req.query);
+    console.log('Project:', project);
     
     // Build the query object
     let query = {};
@@ -17,19 +20,39 @@ router.get('/show', authenticate, async (req, res) => {
       query.project = project;
     }
     
-    // If assigneeEmail is provided, find the user by email and filter by their ID
+    // If assigneeEmail is provided, handle it appropriately
     if (assigneeEmail) {
-      const user = await User.findOne({ email: assigneeEmail });
-      if (user) {
-        query.assignee = user.id;
+      // Check if it's a JWT token
+      if (assigneeEmail.startsWith('eyJ')) {
+        try {
+          // Decode the JWT token (use the same secret that you use for authentication)
+          const decoded = jwt.verify(assigneeEmail, process.env.JWT_SECRET); // Replace with your actual secret
+          
+          // Use the email from the decoded token
+          const user = await TaskFlowTeam.findOne({ email: decoded.email });
+          if (user) {
+            query.assignee = user.id;
+          } else {
+            return res.json([]);
+          }
+        } catch (tokenError) {
+          console.error('Invalid token:', tokenError);
+          return res.status(400).json({ message: 'Invalid token provided as assigneeEmail' });
+        }
       } else {
-        // If user not found but email was provided, return empty array (no tasks for non-existent user)
-        return res.json([]);
+        // Handle as regular email
+        const user = await TaskFlowTeam.findOne({ email: assigneeEmail });
+        if (user) {
+          query.assignee = user.id;
+        } else {
+          return res.json([]);
+        }
       }
     }
     
     const tasks = await Task.find(query);
     res.json(tasks);
+    console.log('Tasks fetched successfully:', tasks);
   } catch (error) {
     console.error('Error fetching tasks:', error);
     res.status(500).json({ message: 'Server error', error: error.message });
