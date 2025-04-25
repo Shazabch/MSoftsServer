@@ -1,16 +1,32 @@
 const express = require('express');
 const router = express.Router();
 const { v4: uuidv4 } = require('uuid');
-const { Task } = require('../../Models/Task');
+const { Task,User } = require('../../Models/Task');
 const { authenticate } = require('../../Middlewere/Teamportalauth');
-const ClientProjects = require('../../Models/ClientProjects'); // Corrected import statement
+const ClientProjects = require('../../Models/ClientProjects');
 
 router.get('/show', authenticate, async (req, res) => {
   try {
-    const { project } = req.query;
+    const { project, assigneeEmail } = req.query;
+    
+    // Build the query object
+    let query = {};
     
     // If project ID is provided, filter tasks by project
-    const query = project ? { project } : {};
+    if (project) {
+      query.project = project;
+    }
+    
+    // If assigneeEmail is provided, find the user by email and filter by their ID
+    if (assigneeEmail) {
+      const user = await User.findOne({ email: assigneeEmail });
+      if (user) {
+        query.assignee = user.id;
+      } else {
+        // If user not found but email was provided, return empty array (no tasks for non-existent user)
+        return res.json([]);
+      }
+    }
     
     const tasks = await Task.find(query);
     res.json(tasks);
@@ -120,18 +136,17 @@ router.get('/project-search', authenticate, async (req, res) => {
     res.status(500).json({ error: "Failed to fetch projects", details: error.message });
   }
 });
+
+// Fixed route to correctly handle the taskId parameter
 router.patch('/move-status/:taskid', authenticate, async (req, res) => {
+  const taskId = req.params.taskid;
   const { taskIds, newStatus } = req.body;
   
-  // Validate required fields
-  if (!taskIds || !newStatus) {
-    return res.status(400).json({ 
-      message: 'Missing required fields: taskIds and newStatus are required' 
-    });
-  }
+  // Use the URL parameter if taskIds is not provided in the body
+  const idsToProcess = taskIds || taskId;
   
   // Validate status value
-  const validStatuses = ['todo', 'in-progress', 'review', 'done'];
+  const validStatuses = ['todo', 'inProgress', 'inReview', 'done'];
   if (!validStatuses.includes(newStatus)) {
     return res.status(400).json({ 
       message: `Invalid status. Status must be one of: ${validStatuses.join(', ')}` 
@@ -140,7 +155,7 @@ router.patch('/move-status/:taskid', authenticate, async (req, res) => {
 
   try {
     // Handle both single ID and array of IDs
-    const ids = Array.isArray(taskIds) ? taskIds : [taskIds];
+    const ids = Array.isArray(idsToProcess) ? idsToProcess : [idsToProcess];
     
     // Find and update all specified tasks
     const updateResults = await Promise.all(
@@ -179,6 +194,7 @@ router.patch('/move-status/:taskid', authenticate, async (req, res) => {
     });
     
   } catch (error) {
+    console.log('Error moving tasks:', error.message);
     console.error('Error moving tasks:', error);
     res.status(500).json({ 
       message: 'Server error', 
@@ -187,58 +203,4 @@ router.patch('/move-status/:taskid', authenticate, async (req, res) => {
   }
 });
 
-/**
- * Bulk move tasks between statuses
- * Allows moving multiple tasks with specified source and target statuses
- */
-router.patch('/bulk-move-status', authenticate, async (req, res) => {
-  const { fromStatus, toStatus, projectId } = req.body;
-  
-  // Validate required fields
-  if (!fromStatus || !toStatus) {
-    return res.status(400).json({ 
-      message: 'Missing required fields: fromStatus and toStatus are required' 
-    });
-  }
-  
-  // Validate status values
-  const validStatuses = ['todo', 'in-progress', 'review', 'done'];
-  if (!validStatuses.includes(fromStatus) || !validStatuses.includes(toStatus)) {
-    return res.status(400).json({ 
-      message: `Invalid status. Status must be one of: ${validStatuses.join(', ')}` 
-    });
-  }
-
-  try {
-    // Build query with optional project filter
-    const query = { status: fromStatus };
-    if (projectId) {
-      query.project = projectId;
-    }
-    
-    // Find all matching tasks and update them
-    const result = await Task.updateMany(
-      query,
-      { $set: { status: toStatus } }
-    );
-    
-    if (result.matchedCount === 0) {
-      return res.status(404).json({ 
-        message: `No tasks found with status '${fromStatus}'${projectId ? ' in the specified project' : ''}` 
-      });
-    }
-    
-    res.json({
-      message: `Successfully moved ${result.modifiedCount} task(s) from '${fromStatus}' to '${toStatus}'`,
-      modifiedCount: result.modifiedCount
-    });
-    
-  } catch (error) {
-    console.error('Error bulk moving tasks:', error);
-    res.status(500).json({ 
-      message: 'Server error', 
-      error: error.message 
-    });
-  }
-});
 module.exports = router;
