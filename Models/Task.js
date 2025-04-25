@@ -1,4 +1,3 @@
-// Update Task Schema
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 
@@ -9,7 +8,7 @@ const activityLogSchema = new mongoose.Schema({
     required: true,
     ref: 'Task'
   },
-  userId: {
+  userEmail: {  // Changed from userId to userEmail
     type: String,
     required: true,
     ref: 'TaskFlowTeam'
@@ -34,7 +33,7 @@ const commentSchema = new mongoose.Schema({
     type: String,
     required: true
   },
-  userId: {
+  userEmail: {  // Changed from userId to userEmail
     type: String,
     required: true,
     ref: 'TaskFlowTeam'
@@ -93,7 +92,7 @@ const taskSchema = new mongoose.Schema({
     default: 'todo'
   },
   assignee: {
-    type: String,  
+    type: String,  // Changed to store email directly instead of ID
     ref: 'TaskFlowTeam'
   },
   priority: {
