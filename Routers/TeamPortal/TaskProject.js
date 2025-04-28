@@ -10,7 +10,6 @@ const authenticate = (req, res, next) => {
   try {
     // Get token from header
     const token = req.header('x-auth-token');
-    
     // Check if no token
     if (!token) {
       return res.status(401).json({ message: 'No token, authorization denied' });
@@ -38,7 +37,6 @@ router.get('/', async (req, res) => {
     
     if (req.user.role === 'admin' || req.user.role === 'superadmin') {
       projects = await TaskFlowProject.find();
-      console.log(`Admin user ${req.user.email} retrieved all projects`);
     } else {
       // Otherwise only show projects where user is a member
       // Using the user's UUID that matches with the members array
@@ -98,7 +96,6 @@ router.post('/', async (req, res) => {
   const { name, description, status, members, clientProjectId } = req.body;
   
   try {
-    console.log('Creating new project with data:', { name, description, status });
     
     let projectMembers = members || [];
     // Add current user as a member if not already included
@@ -146,7 +143,6 @@ const checkProjectAccess = async (req, res, next) => {
     }
     
     if (!project) {
-      console.log(`Project not found with ID: ${req.params.id}`);
       return res.status(404).json({ message: 'Project not found' });
     }
     

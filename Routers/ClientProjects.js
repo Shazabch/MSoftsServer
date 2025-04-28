@@ -50,7 +50,6 @@ router.get("/clientshow", auth, async (req, res) => {
 // Get all projects
 router.get("/show", async (req, res) => {
   const { status } = req.query;
-  console.log(`GET /api/projects/show - Fetching all projects${status ? ` with status: ${status}` : ''}`);
   try {
     let query = {};
     if (status) {

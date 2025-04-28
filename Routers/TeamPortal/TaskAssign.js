@@ -3,7 +3,7 @@ const router = express.Router();
 const { v4: uuidv4 } = require('uuid');
 const { Task, TaskFlowTeam } = require('../../Models/Task');
 const { authenticate } = require('../../Middlewere/Teamportalauth');
-const ClientProjects = require('../../Models/ClientProjects');
+const TaskFlowProject = require('../../Models/TaskFlowProjects');
 const jwt = require('jsonwebtoken');
 
 router.get('/show', authenticate, async (req, res) => {
@@ -52,7 +52,7 @@ router.post('/add', authenticate, async (req, res) => {
   try {
     // Validate if project exists (if provided)
     if (project) {
-      const projectExists = await ClientProjects.findById(project);
+      const projectExists = await TaskFlowProject.findById(project);
       if (!projectExists) {
         return res.status(400).json({ message: 'Project not found' });
       }
@@ -121,7 +121,7 @@ router.put('/update/:id', authenticate, async (req, res) => {
     
     // Validate if project exists (if being updated)
     if (project && project !== task.project) {
-      const projectExists = await ClientProjects.findById(project);
+      const projectExists = await TaskFlowProject.findById(project);
       if (!projectExists) {
         return res.status(400).json({ message: 'Project not found' });
       }
@@ -174,7 +174,7 @@ router.delete('/del/:id', authenticate, async (req, res) => {
 router.get('/project-search', authenticate, async (req, res) => {
   try {
     // Get all projects without filtering
-    const projects = await ClientProjects.find({})
+    const projects = await TaskFlowProject.find({})
       .select('_id name clientEmail status progress')
       .sort({ lastUpdate: -1 });
     
