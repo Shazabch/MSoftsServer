@@ -41,12 +41,12 @@ router.get('/', async (req, res) => {
       console.log(`Admin user ${req.user.email} retrieved all projects`);
     } else {
       // Otherwise only show projects where user is a member
-      // Assuming req.user.id contains the user's UUID that matches with the members array
+      // Using the user's UUID that matches with the members array
       projects = await TaskFlowProject.find({
-        members: req.user.id
+        members: req.user.id  // Assuming req.user.id contains the UUID
       });
-      console.log(`User ${req.user.email} retrieved their projects`);
-      console.log('User projects:', projects);
+      console.log(`User ${req.user.email} (ID: ${req.user.id}) retrieved their projects`);
+      console.log('User projects count:', projects.length);
     }
     
     res.json(projects);
@@ -59,9 +59,23 @@ router.get('/', async (req, res) => {
 // Get project by ID
 router.get('/:id', async (req, res) => {
   try {
-    const project = await TaskFlowProject.findById(req.params.id);
+    console.log(`Attempting to fetch project with ID: ${req.params.id}`);
+    
+    // Try to find the project without assuming ID format
+    let project;
+    
+    // First try with MongoDB ObjectId (if valid)
+    if (mongoose.Types.ObjectId.isValid(req.params.id)) {
+      project = await TaskFlowProject.findById(req.params.id);
+    }
+    
+    // If not found with ObjectId, try with the id field (UUID)
+    if (!project) {
+      project = await TaskFlowProject.findOne({ id: req.params.id });
+    }
     
     if (!project) {
+      console.log(`Project not found with ID: ${req.params.id}`);
       return res.status(404).json({ message: 'Project not found' });
     }
     
@@ -70,6 +84,7 @@ router.get('/:id', async (req, res) => {
         project.members.includes(req.user.id)) {
       return res.json(project);
     } else {
+      console.log(`Access denied for user ${req.user.id} to project ${project._id}`);
       return res.status(403).json({ message: 'Access denied' });
     }
   } catch (err) {
@@ -83,6 +98,8 @@ router.post('/', async (req, res) => {
   const { name, description, status, members, clientProjectId } = req.body;
   
   try {
+    console.log('Creating new project with data:', { name, description, status });
+    
     let projectMembers = members || [];
     // Add current user as a member if not already included
     if (req.user.id && !projectMembers.includes(req.user.id)) {
@@ -94,8 +111,11 @@ router.post('/', async (req, res) => {
       description,
       status,
       members: projectMembers,
+      id: require('uuid').v4(), // Generate a UUID if not provided
       ...(clientProjectId && {
-        clientProjectId: new mongoose.Types.ObjectId(clientProjectId)
+        clientProjectId: mongoose.Types.ObjectId.isValid(clientProjectId) 
+          ? new mongoose.Types.ObjectId(clientProjectId) 
+          : clientProjectId
       })
     });
     
@@ -107,12 +127,26 @@ router.post('/', async (req, res) => {
   }
 });
 
-// Middleware to check project access
+// Middleware to check project access with flexible ID handling
 const checkProjectAccess = async (req, res, next) => {
   try {
-    const project = await TaskFlowProject.findById(req.params.id);
+    console.log(`Checking access for project with ID: ${req.params.id}`);
+    
+    // Try to find the project without assuming ID format
+    let project;
+    
+    // First try with MongoDB ObjectId (if valid)
+    if (mongoose.Types.ObjectId.isValid(req.params.id)) {
+      project = await TaskFlowProject.findById(req.params.id);
+    }
+    
+    // If not found with ObjectId, try with the id field (UUID)
+    if (!project) {
+      project = await TaskFlowProject.findOne({ id: req.params.id });
+    }
     
     if (!project) {
+      console.log(`Project not found with ID: ${req.params.id}`);
       return res.status(404).json({ message: 'Project not found' });
     }
     
@@ -123,6 +157,7 @@ const checkProjectAccess = async (req, res, next) => {
       req.project = project;
       next();
     } else {
+      console.log(`Access denied for user ${req.user.id} to project ${project._id}`);
       res.status(403).json({ message: 'Access denied' });
     }
   } catch (err) {
@@ -141,7 +176,9 @@ router.put('/:id', checkProjectAccess, async (req, res) => {
   if (status) updateFields.status = status;
   if (members) updateFields.members = members;
   if (clientProjectId) {
-    updateFields.clientProjectId = mongoose.Types.ObjectId(clientProjectId);
+    updateFields.clientProjectId = mongoose.Types.ObjectId.isValid(clientProjectId)
+      ? new mongoose.Types.ObjectId(clientProjectId)
+      : clientProjectId;
   } else if (clientProjectId === '') {
     // If empty string is passed, remove the clientProjectId
     updateFields.clientProjectId = undefined;
