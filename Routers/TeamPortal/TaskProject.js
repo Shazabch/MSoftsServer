@@ -41,8 +41,9 @@ router.get('/', async (req, res) => {
       console.log(`Admin user ${req.user.email} retrieved all projects`);
     } else {
       // Otherwise only show projects where user is a member
+      // Assuming req.user.id contains the user's UUID that matches with the members array
       projects = await TaskFlowProject.find({
-        'members.email': req.user.email
+        members: req.user.id
       });
       console.log(`User ${req.user.email} retrieved their projects`);
       console.log('User projects:', projects);
@@ -66,7 +67,7 @@ router.get('/:id', async (req, res) => {
     
     // Check if user has access to this project
     if (req.user.role === 'admin' || req.user.role === 'superadmin' || 
-        project.members.some(member => member.email === req.user.email)) {
+        project.members.includes(req.user.id)) {
       return res.json(project);
     } else {
       return res.status(403).json({ message: 'Access denied' });
@@ -84,8 +85,8 @@ router.post('/', async (req, res) => {
   try {
     let projectMembers = members || [];
     // Add current user as a member if not already included
-    if (req.user.email && !projectMembers.some(member => member.email === req.user.email)) {
-      projectMembers.push({ email: req.user.email });
+    if (req.user.id && !projectMembers.includes(req.user.id)) {
+      projectMembers.push(req.user.id);
     }
     
     const newProject = new TaskFlowProject({
@@ -118,7 +119,7 @@ const checkProjectAccess = async (req, res, next) => {
     // Admin/superadmin can access all projects
     // Regular users can only access projects they're members of
     if (req.user.role === 'admin' || req.user.role === 'superadmin' || 
-        project.members.some(member => member.email === req.user.email)) {
+        project.members.includes(req.user.id)) {
       req.project = project;
       next();
     } else {
