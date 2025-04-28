@@ -3,6 +3,8 @@ const router = express.Router();
 const TaskFlowProject = require('../../Models/TaskFlowProjects');
 const mongoose = require('mongoose');
 const jwt = require('jsonwebtoken');
+const { TaskFlowTeam } = require('../../Models/Task'); // Import your TaskFlowTeam model
+
 const JWT_SECRET = process.env.JWT_SECRET || 'msofts';
 
 // Authentication middleware
@@ -29,7 +31,50 @@ const authenticate = (req, res, next) => {
 
 // Apply authentication middleware to all routes in this router
 router.use(authenticate);
-
+router.get('/:projectId/members', async (req, res) => {
+  try {
+    const { projectId } = req.params;
+    console.log(`Attempting to fetch members for project with ID: ${projectId}`);
+    
+    // Try to find the project without assuming ID format
+    let project;
+    
+    // First try with MongoDB ObjectId (if valid)
+    if (mongoose.Types.ObjectId.isValid(projectId)) {
+      project = await TaskFlowProject.findById(projectId);
+    }
+    
+    // If not found with ObjectId, try with the id field (UUID)
+    if (!project) {
+      project = await TaskFlowProject.findOne({ id: projectId });
+    }
+    
+    if (!project) {
+      console.log(`Project not found with ID: ${projectId}`);
+      return res.status(404).json({ message: 'Project not found' });
+    }
+    
+    // Check if user has access to this project
+    if (req.user.role === 'admin' || req.user.role === 'superadmin' || 
+        project.members.includes(req.user.id)) {
+      
+      // Option 1: Exclusion approach - exclude only the password field
+      const memberDetails = await TaskFlowTeam.find(
+        { id: { $in: project.members } },
+        { password: 0 }  // Exclude only the password field
+      );
+      
+      console.log(`Found ${memberDetails.length} members for project ${projectId}`);
+      return res.json(memberDetails);
+    } else {
+      console.log(`Access denied for user ${req.user.id} to project ${project._id}`);
+      return res.status(403).json({ message: 'Access denied' });
+    }
+  } catch (err) {
+    console.error('Error fetching project members:', err.message);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
 // Get all projects
 router.get('/', async (req, res) => {
   try {
@@ -209,23 +254,5 @@ router.delete('/:id', checkProjectAccess, async (req, res) => {
   }
 });
 
-// Middleware to require superadmin permissions
-const requireSuperAdmin = (req, res, next) => {
-  if (req.user.role !== 'superadmin') {
-    return res.status(403).json({ message: 'Forbidden: Super Admin access required' });
-  }
-  next();
-};
-
-// Example of a route that requires superadmin permissions
-router.get('/admin/all-projects', requireSuperAdmin, async (req, res) => {
-  try {
-    const allProjects = await TaskFlowProject.find().sort({ createdAt: -1 });
-    res.json(allProjects);
-  } catch (err) {
-    console.error('Error fetching all projects:', err.message);
-    res.status(500).json({ message: 'Server error' });
-  }
-});
 
 module.exports = router;

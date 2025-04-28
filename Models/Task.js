@@ -1,48 +1,6 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 
-// Activity Log Schema
-const activityLogSchema = new mongoose.Schema({
-  taskId: {
-    type: String,
-    required: true,
-    ref: 'Task'
-  },
-  userEmail: {  // Changed from userId to userEmail
-    type: String,
-    required: true,
-    ref: 'TaskFlowTeam'
-  },
-  action: {
-    type: String,
-    required: true,
-    enum: ['created', 'updated', 'comment', 'status_change', 'assigned']
-  },
-  details: {
-    type: mongoose.Schema.Types.Mixed
-  },
-  createdAt: {
-    type: Date,
-    default: Date.now
-  }
-});
-
-// Comment Schema
-const commentSchema = new mongoose.Schema({
-  content: {
-    type: String,
-    required: true
-  },
-  userEmail: {  // Changed from userId to userEmail
-    type: String,
-    required: true,
-    ref: 'TaskFlowTeam'
-  },
-  createdAt: {
-    type: Date,
-    default: Date.now
-  }
-});
 
 // User Schema
 const userSchema = new mongoose.Schema({
@@ -71,7 +29,6 @@ const userSchema = new mongoose.Schema({
   }
 }, { timestamps: true });
 
-// Task Schema
 const taskSchema = new mongoose.Schema({
   id: {
     type: String,
@@ -91,8 +48,14 @@ const taskSchema = new mongoose.Schema({
     enum: ['todo', 'inProgress', 'inReview', 'done'],
     default: 'todo'
   },
+  // Updated to support multiple assignees
+  assignees: [{
+    type: String, // Store email addresses
+    ref: 'TaskFlowTeam'
+  }],
+  // Keep original assignee field for backward compatibility
   assignee: {
-    type: String,  // Changed to store email directly instead of ID
+    type: String,
     ref: 'TaskFlowTeam'
   },
   priority: {
@@ -105,10 +68,14 @@ const taskSchema = new mongoose.Schema({
     default: Date.now
   },
   project: {
-    type: String,  // Make sure this is String if you're storing a UUID
+    type: String,
     default: 'default-project'
   },
-  comments: [commentSchema],
+  // Flag to track if task was assigned to all project members
+  assignedToAllMembers: {
+    type: Boolean,
+    default: false
+  },
   timeTracking: {
     totalTime: {
       type: Number,
@@ -122,8 +89,9 @@ const taskSchema = new mongoose.Schema({
   }
 }, { timestamps: true });
 
+
+
 const TaskFlowTeam = mongoose.model('TaskFlowTeam', userSchema);
 const Task = mongoose.model('Task', taskSchema);
-const ActivityLog = mongoose.model('ActivityLog', activityLogSchema);
 
-module.exports = { TaskFlowTeam, Task, ActivityLog };
+module.exports = { TaskFlowTeam, Task };

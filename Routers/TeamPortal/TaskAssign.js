@@ -9,45 +9,62 @@ const jwt = require('jsonwebtoken');
 router.get('/show', authenticate, async (req, res) => {
   try {
     const { project, assigneeEmail } = req.query;
-    // console.log('Query parameters:', req.query);
-        let query = {};
-        const userRole = req.user?.role || 'user';
-    // console.log('User role:', userRole);
-
-
+    console.log('Query parameters:', req.query);
+    
+    let query = {};
+    const userRole = req.user?.role || 'user';
+    console.log('User role:', userRole);
+    
+    let userEmailToMatch = req.user.email;
+    
     if (userRole === 'admin' || userRole === 'superadmin') {
       if (assigneeEmail) {
         if (assigneeEmail.startsWith('eyJ')) {
           try {
             const decoded = jwt.verify(assigneeEmail, process.env.JWT_SECRET);
-            // console.log('Decoded token:', decoded);
-                        if (decoded.email !== req.user.email) {
-              query.assignee = decoded.email;
-            }            
+            console.log('Decoded token:', decoded);
+            
+            if (decoded.email !== req.user.email) {
+              userEmailToMatch = decoded.email;
+            }
+            
           } catch (tokenError) {
             console.error('Invalid token:', tokenError);
             return res.status(400).json({ message: 'Invalid token provided as assigneeEmail' });
           }
         } else if (assigneeEmail !== req.user.email) {
-          query.assignee = assigneeEmail;
+          userEmailToMatch = assigneeEmail;
         }
       }
     } else {
-      query.assignee = req.user.email;
-      // console.log('User role is regular user, filtering by their email:', req.user.email);
+      console.log('User role is regular user, filtering by their email:', req.user.email);
     }
     
-    // console.log('Final query:', query);
+    // Use $or to match either assignee field or assignees array
+    query = {
+      $or: [
+        { assignee: userEmailToMatch },    // If assignee field directly contains email
+        { assignees: { $in: [userEmailToMatch] } }  // If email is in assignees array
+      ]
+    };
+    
+    // Add project filter if provided
+    // if (project) {
+    //   query.project = project;
+    // }
+    
+    console.log('Final query:', query);
     const tasks = await Task.find(query);
     res.json(tasks);
-    // console.log(`Tasks fetched successfully: ${tasks.length} tasks found`);
+    console.log(`Tasks fetched successfully: ${tasks.length} tasks found`);
   } catch (error) {
     console.error('Error fetching tasks:', error);
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 });
+
 router.post('/add', authenticate, async (req, res) => {
-  let { title, description, status, assignee, project, priority } = req.body;
+  let { title, description, status, assignees, project, priority, assignToAllMembers } = req.body;
   
   try {
     // Validate if project exists (if provided)
@@ -56,35 +73,85 @@ router.post('/add', authenticate, async (req, res) => {
       if (!projectExists) {
         return res.status(400).json({ message: 'Project not found' });
       }
-    }
-
-    // If assignee is a UUID, convert it to email
-    if (assignee && assignee.trim() !== '') {
-      // console.log('new Assignee provided:', assignee);
       
-      // Check if it's a UUID format (simplified check)
-      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-      
-      if (uuidRegex.test(assignee)) {
-        // It's a UUID, so look up the user's email
-        const user = await TaskFlowTeam.findOne({ id: assignee });
-        if (!user) {
-          return res.status(400).json({ message: 'User not found with the provided ID' });
-        }
-        // Replace the assignee with the email
-        assignee = user.email;
-      } else {
-        // Check if it's a valid email
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        if (!emailRegex.test(assignee)) {
-          return res.status(400).json({ message: 'Invalid format for assignee. Must be a valid email or user ID' });
+      // If assignToAllMembers is true, get all project members
+      if (assignToAllMembers) {
+        try {
+          // Fetch project members - this assumes you have a way to get project members
+          // You'll need to implement this endpoint or modify this based on your project structure
+          const projectMembers = await getProjectMembers(project);
+          
+          if (!projectMembers || projectMembers.length === 0) {
+            return res.status(400).json({ message: 'No members found in the project' });
+          }
+          
+          // Use member emails as assignees
+          assignees = projectMembers.map(member => member.email);
+        } catch (memberError) {
+          console.error('Error fetching project members:', memberError);
+          return res.status(500).json({ message: 'Failed to fetch project members', error: memberError.message });
         }
       }
+    }
+
+    // Handle compatibility with single assignee (backward compatibility)
+    let singleAssignee = null;
+    
+    // Process assignees if provided
+    if (assignees && Array.isArray(assignees) && assignees.length > 0) {
+      // Store the first assignee in the singular field for backward compatibility
+      singleAssignee = assignees[0];
       
-      // Verify the email exists in the system
-      const userExists = await TaskFlowTeam.findOne({ email: assignee });
-      if (!userExists) {
-        console.warn(`Warning: Assigning task to email ${assignee} which is not registered in the system`);
+      // Validate all assignees
+      for (const assignee of assignees) {
+        // Check if it's a UUID
+        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+        
+        if (uuidRegex.test(assignee)) {
+          // It's a UUID, so look up the user's email
+          const user = await TaskFlowTeam.findOne({ id: assignee });
+          if (!user) {
+            return res.status(400).json({ message: `User not found with the provided ID: ${assignee}` });
+          }
+          // Replace the UUID with email in the assignees array
+          const index = assignees.indexOf(assignee);
+          assignees[index] = user.email;
+        } else {
+          // Check if it's a valid email
+          const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+          if (!emailRegex.test(assignee)) {
+            return res.status(400).json({ 
+              message: `Invalid format for assignee: ${assignee}. Must be a valid email or user ID` 
+            });
+          }
+        }
+      }
+    } else if (req.body.assignee) {
+      // Handle single assignee from the old format
+      let assignee = req.body.assignee;
+      
+      if (assignee && assignee.trim() !== '') {
+        // Check if it's a UUID
+        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+        
+        if (uuidRegex.test(assignee)) {
+          // It's a UUID, so look up the user's email
+          const user = await TaskFlowTeam.findOne({ id: assignee });
+          if (!user) {
+            return res.status(400).json({ message: 'User not found with the provided ID' });
+          }
+          // Replace the assignee with the email
+          assignee = user.email;
+        } else {
+          // Check if it's a valid email
+          const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+          if (!emailRegex.test(assignee)) {
+            return res.status(400).json({ message: 'Invalid format for assignee. Must be a valid email or user ID' });
+          }
+        }
+        
+        singleAssignee = assignee;
+        assignees = [assignee];
       }
     }
     
@@ -93,9 +160,11 @@ router.post('/add', authenticate, async (req, res) => {
       title,
       description,
       status: status || 'todo',
-      assignee,
+      assignee: singleAssignee, // For backward compatibility
+      assignees: assignees || [], // New field for multiple assignees
       project,
       priority: priority || 'low',
+      assignedToAllMembers: assignToAllMembers || false,
       createdAt: new Date().toISOString()
     });
     
@@ -108,9 +177,10 @@ router.post('/add', authenticate, async (req, res) => {
   }
 });
 
+// Update task route - update to support multiple assignees
 router.put('/update/:id', authenticate, async (req, res) => {
   const { id } = req.params;
-  const { title, description, status, assignee, project, priority } = req.body;
+  const { title, description, status, assignee, assignees, project, priority, assignToAllMembers } = req.body;
   
   try {
     const task = await Task.findOne({ id });
@@ -127,21 +197,105 @@ router.put('/update/:id', authenticate, async (req, res) => {
       }
     }
     
-    // Validate assignee email if provided
-    if (assignee !== undefined && assignee !== task.assignee) {
-      const userExists = await TaskFlowTeam.findOne({ email: assignee });
-      if (!userExists && assignee !== null) {
-        return res.status(400).json({ message: 'Assignee user not found' });
+    // Handle assignToAllMembers
+    let finalAssignees = task.assignees || [];
+    let singleAssignee = task.assignee;
+    
+    if (assignToAllMembers) {
+      try {
+        // Get all project members for the current project
+        const projectId = project || task.project;
+        const projectMembers = await getProjectMembers(projectId);
+        
+        if (!projectMembers || projectMembers.length === 0) {
+          return res.status(400).json({ message: 'No members found in the project' });
+        }
+        
+        // Use member emails as assignees
+        finalAssignees = projectMembers.map(member => member.email);
+        singleAssignee = finalAssignees[0]; // Set first member as single assignee for backward compatibility
+      } catch (memberError) {
+        console.error('Error fetching project members:', memberError);
+        return res.status(500).json({ message: 'Failed to fetch project members', error: memberError.message });
+      }
+    }
+    // If assignees are provided and not using assignToAllMembers
+    else if (assignees !== undefined) {
+      // Process the provided assignees
+      finalAssignees = [];
+      
+      if (Array.isArray(assignees) && assignees.length > 0) {
+        for (const assignee of assignees) {
+          // Check if it's a UUID
+          const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+          
+          if (uuidRegex.test(assignee)) {
+            // It's a UUID, so look up the user's email
+            const user = await TaskFlowTeam.findOne({ id: assignee });
+            if (!user) {
+              return res.status(400).json({ message: `User not found with the provided ID: ${assignee}` });
+            }
+            finalAssignees.push(user.email);
+          } else {
+            // Check if it's a valid email
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(assignee)) {
+              return res.status(400).json({ 
+                message: `Invalid format for assignee: ${assignee}. Must be a valid email or user ID` 
+              });
+            }
+            finalAssignees.push(assignee);
+          }
+        }
+        
+        // Set first assignee as the single assignee for backward compatibility
+        singleAssignee = finalAssignees.length > 0 ? finalAssignees[0] : null;
+      } else {
+        // No assignees or empty array
+        finalAssignees = [];
+        singleAssignee = null;
+      }
+    }
+    // If only single assignee is provided (backward compatibility)
+    else if (assignee !== undefined) {
+      if (assignee === null) {
+        // Clear assignees if assignee is explicitly set to null
+        singleAssignee = null;
+        finalAssignees = [];
+      } else {
+        // Validate the assignee if provided
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+        
+        if (uuidRegex.test(assignee)) {
+          // It's a UUID, look up the user
+          const user = await TaskFlowTeam.findOne({ id: assignee });
+          if (!user) {
+            return res.status(400).json({ message: 'Assignee user not found' });
+          }
+          singleAssignee = user.email;
+        } else if (!emailRegex.test(assignee)) {
+          return res.status(400).json({ message: 'Invalid format for assignee. Must be a valid email or user ID' });
+        } else {
+          singleAssignee = assignee;
+        }
+        
+        // Update assignees array to match single assignee
+        finalAssignees = [singleAssignee];
       }
     }
     
-    // Update task fields if provided
+    // Update task fields
     if (title) task.title = title;
     if (description !== undefined) task.description = description;
     if (status) task.status = status;
-    if (assignee !== undefined) task.assignee = assignee; // Store email directly
     if (project) task.project = project;
     if (priority) task.priority = priority;
+    
+    // Update assignees
+    task.assignees = finalAssignees;
+    task.assignee = singleAssignee;
+    task.assignedToAllMembers = assignToAllMembers || false;
     
     await task.save();
     
@@ -247,6 +401,54 @@ router.patch('/move-status/:taskid', authenticate, async (req, res) => {
       message: 'Server error', 
       error: error.message 
     });
+  }
+});
+
+// Helper function to get project members
+async function getProjectMembers(projectId) {
+  try {
+    // Assuming you have a method to get project members
+    // This is just a placeholder - implement according to your data model
+    const project = await TaskFlowProject.findById(projectId);
+    if (!project) {
+      throw new Error('Project not found');
+    }
+    
+    // If project has members field, return those members
+    if (project.members && Array.isArray(project.members)) {
+      // If members are stored as IDs, fetch the actual user data
+      const memberPromises = project.members.map(async (memberId) => {
+        return await TaskFlowTeam.findOne({ id: memberId });
+      });
+      
+      const members = await Promise.all(memberPromises);
+      return members.filter(member => member !== null); // Filter out any null results
+    }
+    
+    // If your project structure doesn't have members directly, you might need to
+    // query another collection or relationship
+    
+    // Example: If you have a ProjectMembers collection
+    // return await ProjectMembers.find({ projectId }).populate('member');
+    
+    // For now, return an empty array if no members are found
+    return [];
+  } catch (error) {
+    console.error('Error getting project members:', error);
+    throw error;
+  }
+}
+
+// Add project members endpoint
+router.get('/project/:projectId/members', authenticate, async (req, res) => {
+  const { projectId } = req.params;
+  
+  try {
+    const members = await getProjectMembers(projectId);
+    res.json(members);
+  } catch (error) {
+    console.error('Error fetching project members:', error);
+    res.status(500).json({ message: 'Failed to fetch project members', error: error.message });
   }
 });
 
