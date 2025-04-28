@@ -12,7 +12,7 @@ router.get('/show', authenticate, async (req, res) => {
     // console.log('Query parameters:', req.query);
         let query = {};
         const userRole = req.user?.role || 'user';
-    console.log('User role:', userRole);
+    // console.log('User role:', userRole);
 
 
     if (userRole === 'admin' || userRole === 'superadmin') {
@@ -34,13 +34,13 @@ router.get('/show', authenticate, async (req, res) => {
       }
     } else {
       query.assignee = req.user.email;
-      console.log('User role is regular user, filtering by their email:', req.user.email);
+      // console.log('User role is regular user, filtering by their email:', req.user.email);
     }
     
-    console.log('Final query:', query);
+    // console.log('Final query:', query);
     const tasks = await Task.find(query);
     res.json(tasks);
-    console.log(`Tasks fetched successfully: ${tasks.length} tasks found`);
+    // console.log(`Tasks fetched successfully: ${tasks.length} tasks found`);
   } catch (error) {
     console.error('Error fetching tasks:', error);
     res.status(500).json({ message: 'Server error', error: error.message });
@@ -60,7 +60,7 @@ router.post('/add', authenticate, async (req, res) => {
 
     // If assignee is a UUID, convert it to email
     if (assignee && assignee.trim() !== '') {
-      console.log('new Assignee provided:', assignee);
+      // console.log('new Assignee provided:', assignee);
       
       // Check if it's a UUID format (simplified check)
       const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;

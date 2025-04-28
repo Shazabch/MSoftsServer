@@ -35,6 +35,7 @@ router.get('/me', authenticate, async (req, res) => {
 
 // Login route
 router.post('/login', async (req, res) => {
+  console.log('Login attempt with body:', req.body);
   const { email, password } = req.body;
   
   // Hardcoded superadmin check
@@ -83,12 +84,16 @@ router.post('/login', async (req, res) => {
         name: taskFlowTeam.name,
         email: taskFlowTeam.email,
         role: taskFlowTeam.role
-      }
+      },
     });
+    console.log('User logged in successfully:', taskFlowTeam.email)
+
   } catch (error) {
     console.error('Error in /login route:', error);
     res.status(500).json({ message: 'Server error', error: error.message });
+    console.log('Error in /login route:', error.message);
   }
+
 });
 
 module.exports = router;
