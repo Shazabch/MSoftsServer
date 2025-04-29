@@ -9,20 +9,21 @@ const jwt = require('jsonwebtoken');
 router.get('/show', authenticate, async (req, res) => {
   try {
     const { project, assigneeEmail } = req.query;
-    console.log('Query parameters:', req.query);
+    // console.log('Query parameters:', req.query);
     
     let query = {};
     const userRole = req.user?.role || 'user';
-    console.log('User role:', userRole);
+    // console.log('User role:', userRole);
     
-    let userEmailToMatch = req.user.email;
-    
+    // For admin users, show all tasks if no assignee filter is provided
     if (userRole === 'admin' || userRole === 'superadmin') {
       if (assigneeEmail) {
+        let userEmailToMatch = req.user.email;
+        
         if (assigneeEmail.startsWith('eyJ')) {
           try {
             const decoded = jwt.verify(assigneeEmail, process.env.JWT_SECRET);
-            console.log('Decoded token:', decoded);
+            // console.log('Decoded token:', decoded);
             
             if (decoded.email !== req.user.email) {
               userEmailToMatch = decoded.email;
@@ -35,25 +36,30 @@ router.get('/show', authenticate, async (req, res) => {
         } else if (assigneeEmail !== req.user.email) {
           userEmailToMatch = assigneeEmail;
         }
+        
+        // Filter by the specified assignee
+        query = {
+          $or: [
+            { assignee: userEmailToMatch },
+            { assignees: { $in: [userEmailToMatch] } }
+          ]
+        };
       }
     } else {
-      console.log('User role is regular user, filtering by their email:', req.user.email);
+      // console.log('User role is regular user, filtering by their email:', req.user.email);
+      query = {
+        $or: [
+          { assignee: req.user.email },
+          { assignees: { $in: [req.user.email] } }
+        ]
+      };
     }
     
-    // Use $or to match either assignee field or assignees array
-    query = {
-      $or: [
-        { assignee: userEmailToMatch },    // If assignee field directly contains email
-        { assignees: { $in: [userEmailToMatch] } }  // If email is in assignees array
-      ]
-    };
-    
-    // Add project filter if provided
-    // if (project) {
+    // if (project && project !== 'default-project') {
     //   query.project = project;
     // }
     
-    console.log('Final query:', query);
+    // console.log('Final query:', query);
     const tasks = await Task.find(query);
     res.json(tasks);
     console.log(`Tasks fetched successfully: ${tasks.length} tasks found`);
@@ -77,8 +83,7 @@ router.post('/add', authenticate, async (req, res) => {
       // If assignToAllMembers is true, get all project members
       if (assignToAllMembers) {
         try {
-          // Fetch project members - this assumes you have a way to get project members
-          // You'll need to implement this endpoint or modify this based on your project structure
+          // Fetch project members
           const projectMembers = await getProjectMembers(project);
           
           if (!projectMembers || projectMembers.length === 0) {
@@ -96,11 +101,11 @@ router.post('/add', authenticate, async (req, res) => {
 
     // Handle compatibility with single assignee (backward compatibility)
     let singleAssignee = null;
+    let finalAssignees = [];
     
     // Process assignees if provided
     if (assignees && Array.isArray(assignees) && assignees.length > 0) {
-      // Store the first assignee in the singular field for backward compatibility
-      singleAssignee = assignees[0];
+      finalAssignees = [];
       
       // Validate all assignees
       for (const assignee of assignees) {
@@ -113,9 +118,8 @@ router.post('/add', authenticate, async (req, res) => {
           if (!user) {
             return res.status(400).json({ message: `User not found with the provided ID: ${assignee}` });
           }
-          // Replace the UUID with email in the assignees array
-          const index = assignees.indexOf(assignee);
-          assignees[index] = user.email;
+          // Add the email to finalAssignees
+          finalAssignees.push(user.email);
         } else {
           // Check if it's a valid email
           const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -124,8 +128,13 @@ router.post('/add', authenticate, async (req, res) => {
               message: `Invalid format for assignee: ${assignee}. Must be a valid email or user ID` 
             });
           }
+          finalAssignees.push(assignee);
         }
       }
+      
+      // Store the first assignee in the singular field for backward compatibility
+      singleAssignee = finalAssignees.length > 0 ? finalAssignees[0] : null;
+      
     } else if (req.body.assignee) {
       // Handle single assignee from the old format
       let assignee = req.body.assignee;
@@ -151,7 +160,7 @@ router.post('/add', authenticate, async (req, res) => {
         }
         
         singleAssignee = assignee;
-        assignees = [assignee];
+        finalAssignees = [assignee];
       }
     }
     
@@ -161,7 +170,7 @@ router.post('/add', authenticate, async (req, res) => {
       description,
       status: status || 'todo',
       assignee: singleAssignee, // For backward compatibility
-      assignees: assignees || [], // New field for multiple assignees
+      assignees: finalAssignees, // New field for multiple assignees
       project,
       priority: priority || 'low',
       assignedToAllMembers: assignToAllMembers || false,
@@ -176,7 +185,6 @@ router.post('/add', authenticate, async (req, res) => {
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 });
-
 // Update task route - update to support multiple assignees
 router.put('/update/:id', authenticate, async (req, res) => {
   const { id } = req.params;
@@ -258,6 +266,8 @@ router.put('/update/:id', authenticate, async (req, res) => {
     }
     // If only single assignee is provided (backward compatibility)
     else if (assignee !== undefined) {
+      let processedAssignee = assignee;
+      
       if (assignee === null) {
         // Clear assignees if assignee is explicitly set to null
         singleAssignee = null;
@@ -273,15 +283,14 @@ router.put('/update/:id', authenticate, async (req, res) => {
           if (!user) {
             return res.status(400).json({ message: 'Assignee user not found' });
           }
-          singleAssignee = user.email;
+          processedAssignee = user.email;
         } else if (!emailRegex.test(assignee)) {
           return res.status(400).json({ message: 'Invalid format for assignee. Must be a valid email or user ID' });
-        } else {
-          singleAssignee = assignee;
         }
         
+        singleAssignee = processedAssignee;
         // Update assignees array to match single assignee
-        finalAssignees = [singleAssignee];
+        finalAssignees = [processedAssignee];
       }
     }
     
