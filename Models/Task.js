@@ -1,7 +1,6 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 
-
 // User Schema
 const userSchema = new mongoose.Schema({
   id: {
@@ -28,6 +27,23 @@ const userSchema = new mongoose.Schema({
     default: 'user'
   }
 }, { timestamps: true });
+
+// Define a comment schema
+const commentSchema = new mongoose.Schema({
+  content: {
+    type: String,
+    required: true
+  },
+  userId: {
+    type: String,
+    required: true,
+    ref: 'TaskFlowTeam'
+  },
+  createdAt: {
+    type: Date,
+    default: Date.now
+  }
+});
 
 const taskSchema = new mongoose.Schema({
   id: {
@@ -86,10 +102,10 @@ const taskSchema = new mongoose.Schema({
       endTime: Date,
       duration: Number
     }]
-  }
+  },
+  // Add comments array to the task schema
+  comments: [commentSchema]
 }, { timestamps: true });
-
-
 
 const TaskFlowTeam = mongoose.model('TaskFlowTeam', userSchema);
 const Task = mongoose.model('Task', taskSchema);
