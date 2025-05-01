@@ -62,7 +62,6 @@ router.get('/show', authenticate, async (req, res) => {
     // console.log('Final query:', query);
     const tasks = await Task.find(query);
     res.json(tasks);
-    console.log(`Tasks fetched successfully: ${tasks.length} tasks found`);
   } catch (error) {
     console.error('Error fetching tasks:', error);
     res.status(500).json({ message: 'Server error', error: error.message });

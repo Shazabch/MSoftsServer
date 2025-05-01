@@ -8,18 +8,15 @@ const { authenticate, requireSuperAdmin } = require('../../Middlewere/Teamportal
 // Get all team members
 router.get('/', authenticate, async (req, res) => {
   try {
-    // Check if TaskFlowTeam exists before using it
     if (!TaskFlowTeam) {
       console.error('TaskFlowTeam model is undefined');
       return res.status(500).json({ message: 'Server configuration error' });
     }
-    
-    // Return all necessary fields including email (which we now use for task assignment)
     const teamMembers = await TaskFlowTeam.find({}, 'id name email role');
     res.json(teamMembers);
   } catch (error) {
-    console.error('Error in team GET route:', error);
     res.status(500).json({ message: 'Server error', error: error.message });
+    console.error('Error in team route:', error);
   }
 });
 

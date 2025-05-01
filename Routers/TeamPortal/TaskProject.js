@@ -63,9 +63,7 @@ router.get('/:projectId/members', async (req, res) => {
         { id: { $in: project.members } },
         { password: 0 }  // Exclude only the password field
       );
-      
-      console.log(`Found ${memberDetails.length} members for project ${projectId}`);
-      return res.json(memberDetails);
+        return res.json(memberDetails);
     } else {
       console.log(`Access denied for user ${req.user.id} to project ${project._id}`);
       return res.status(403).json({ message: 'Access denied' });
@@ -83,13 +81,9 @@ router.get('/', async (req, res) => {
     if (req.user.role === 'admin' || req.user.role === 'superadmin') {
       projects = await TaskFlowProject.find();
     } else {
-      // Otherwise only show projects where user is a member
-      // Using the user's UUID that matches with the members array
       projects = await TaskFlowProject.find({
-        members: req.user.id  // Assuming req.user.id contains the UUID
+        members: req.user.id 
       });
-      console.log(`User ${req.user.email} (ID: ${req.user.id}) retrieved their projects`);
-      console.log('User projects count:', projects.length);
     }
     
     res.json(projects);
