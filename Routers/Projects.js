@@ -223,7 +223,7 @@ router.put("/update/:id", upload.fields([
         existingImagesArray = JSON.parse(existingImages);
       } catch (error) {
         console.error('Error parsing existing images:', error);
-      }
+      } 
     }
 
     // Handle file uploads if new files are provided
