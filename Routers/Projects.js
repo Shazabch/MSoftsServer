@@ -46,7 +46,7 @@ const uploadToCloudinary = async (file) => {
 router.post("/add", upload.fields([
   { name: 'backgroundImage', maxCount: 1 },
   { name: 'clientLogo', maxCount: 1 },
-  { name: 'portfolioImage', maxCount: 1 }, // Added portfolio image
+  { name: 'portfolioImage', maxCount: 1 },
   { name: 'images', maxCount: 10 }
 ]), async (req, res) => {
   try {
@@ -62,6 +62,7 @@ router.post("/add", upload.fields([
       results,
       testimonial,
       regions,
+      country, // Added country field
       category,
       liveUrl: liveurl,
       status = 'listed' // Default to listed if not provided
@@ -82,7 +83,7 @@ router.post("/add", upload.fields([
       slug,
       category: JSON.parse(category),
       backgroundImage,
-      portfolioImage, // Added portfolio image
+      portfolioImage,
       description,
       client,
       clientLogo,
@@ -94,6 +95,7 @@ router.post("/add", upload.fields([
       results,
       testimonial,
       regions: regions ? JSON.parse(regions) : [],
+      country, // Added country field
       liveUrl: liveurl,
       status
     });
@@ -108,7 +110,7 @@ router.post("/add", upload.fields([
 
 // Fetch All Projects
 router.get("/show", async (req, res) => {
-  const { category, status } = req.query;
+  const { category, status, country } = req.query; // Added country to query params
 
   try {
     let query = {};
@@ -121,6 +123,11 @@ router.get("/show", async (req, res) => {
     // Add status filter if specified
     if (status) {
       query.status = status;
+    }
+    
+    // Add country filter if specified
+    if (country) {
+      query.country = country;
     }
     
     const projects = await Project.find(query);
@@ -164,7 +171,7 @@ router.put("/update/:id", upload.fields([
   { name: 'clientLogo', maxCount: 1 },
   { name: 'portfolioImage', maxCount: 1 },
   { name: 'images', maxCount: 10 },
-  { name: 'existingImages', maxCount: 10 } // Add this line
+  { name: 'existingImages', maxCount: 10 }
 ]), async (req, res) => {
   const { id } = req.params;
   try {
@@ -180,10 +187,11 @@ router.put("/update/:id", upload.fields([
       results,
       testimonial,
       regions,
+      country, 
       category,
       liveUrl,
       status,
-      existingImages // Parse existing images from request
+      existingImages
     } = req.body;
 
     // Generate new slug if title changed
@@ -205,11 +213,10 @@ router.put("/update/:id", upload.fields([
       results,
       testimonial,
       regions: regions ? JSON.parse(regions) : [],
+      country, 
       liveUrl,
       status,
     };
-    
-    // Parse existing images if provided
     let existingImagesArray = [];
     if (existingImages) {
       try {

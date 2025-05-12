@@ -19,6 +19,7 @@ const projectSchema = new mongoose.Schema({
   results: { type: String },
   testimonial: { type: String },
   regions: { type: [String] },
+  country: { type: String },
   liveUrl: { type: String, required: true },
   status: { type: String, enum: ['listed', 'unlisted'], default: 'listed' }
 }, { timestamps: true });
