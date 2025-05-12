@@ -32,6 +32,11 @@ const BankRouter = require("../Routers/BankManagment")
 const InvoiceRouter = require("../Routers/Invoice")
 const ClientSupportouter = require("../Routers/ClientSupport")
 const ClientNotificationRouter = require("../Routers/ClientNotifications")
+const TeamAuthRouter = require("../Routers/TeamPortal/Auth")
+const TeamadditionRouter = require("../Routers/TeamPortal/Team")
+const TeamtaskRouter = require("../Routers/TeamPortal/TaskAssign")
+const TeamtaskinfoRouter = require("../Routers/TeamPortal/TaskInfo")
+const TeamtaskprojectsRouter = require("../Routers/TeamPortal/TaskProject")
 
 // Initialize Express app
 const app = express();
@@ -103,6 +108,11 @@ app.use("/api/bank",BankRouter)
 app.use("/api/invoice",InvoiceRouter)
 app.use("/api/client/support-ticket",ClientSupportouter)
 app.use("/api/client/notification",ClientNotificationRouter)
+app.use("/api/team/auth",TeamAuthRouter)
+app.use("/api/team/create",TeamadditionRouter)
+app.use("/api/team/task",TeamtaskRouter)
+app.use("/api/team/task/info",TeamtaskinfoRouter)
+app.use("/api/team/task/project",TeamtaskprojectsRouter)
 
 // Set the PORT
 const PORT = process.env.PORT || 5000;

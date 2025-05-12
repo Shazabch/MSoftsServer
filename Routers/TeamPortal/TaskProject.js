@@ -247,6 +247,39 @@ router.delete('/:id', checkProjectAccess, async (req, res) => {
     res.status(500).json({ message: 'Server error' });
   }
 });
+// Add this route to your existing project.js file
 
+router.get('/name/:id', async (req, res) => {
+  try {
+    console.log(`Attempting to fetch project name with ID: ${req.params.id}`);
+    
+    // Try to find the project without assuming ID format
+    let project;
+    
+    // First try with MongoDB ObjectId (if valid)
+    if (mongoose.Types.ObjectId.isValid(req.params.id)) {
+      project = await TaskFlowProject.findById(req.params.id);
+    }
+    
+    // If not found with ObjectId, try with the id field (UUID)
+    if (!project) {
+      project = await TaskFlowProject.findOne({ id: req.params.id });
+    }
+    
+    if (!project) {
+      console.log(`Project not found with ID: ${req.params.id}`);
+      return res.status(404).json({ message: 'Project not found' });
+    }
+    
+    // Return just the project name and id
+    return res.json({ 
+      id: project._id || project.id,
+      name: project.name 
+    });
+  } catch (err) {
+    console.error('Error fetching project name:', err.message);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
 
 module.exports = router;

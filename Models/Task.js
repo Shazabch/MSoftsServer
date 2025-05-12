@@ -69,7 +69,6 @@ const taskSchema = new mongoose.Schema({
     type: String, // Store email addresses
     ref: 'TaskFlowTeam'
   }],
-  // Keep original assignee field for backward compatibility
   assignee: {
     type: String,
     ref: 'TaskFlowTeam'
@@ -87,7 +86,6 @@ const taskSchema = new mongoose.Schema({
     type: String,
     default: 'default-project'
   },
-  // Flag to track if task was assigned to all project members
   assignedToAllMembers: {
     type: Boolean,
     default: false
@@ -103,7 +101,6 @@ const taskSchema = new mongoose.Schema({
       duration: Number
     }]
   },
-  // Add comments array to the task schema
   comments: [commentSchema]
 }, { timestamps: true });
 
